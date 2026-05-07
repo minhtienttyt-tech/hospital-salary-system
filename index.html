@@ -4,352 +4,215 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ thống Lương & Thuế - BVĐK Than Uyên</title>
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Scripts -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        :root {
-            --primary: #0ea5e9;
-            --primary-dark: #0284c7;
-            --bg-main: #f8fafc;
-            --bg-card: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        }
-
-        [data-theme="dark"] {
-            --bg-main: #0f172a;
-            --bg-card: #1e293b;
-            --text-main: #f1f5f9;
-            --text-muted: #94a3b8;
-            --border: #334155;
-        }
-
+        :root { --primary: #0ea5e9; --primary-dark: #0284c7; --bg-main: #f8fafc; --bg-card: #ffffff; --text-main: #1e293b; --text-muted: #64748b; --border: #e2e8f0; --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        [data-theme="dark"] { --bg-main: #0f172a; --bg-card: #1e293b; --text-main: #f1f5f9; --text-muted: #94a3b8; --border: #334155; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-main); line-height: 1.5; overflow-x: hidden; }
-        h1, h2, h3 { font-family: 'Outfit', sans-serif; }
-
+        body { font-family: 'Inter', sans-serif; background: var(--bg-main); color: var(--text-main); line-height: 1.5; }
         #app { display: flex; min-height: 100vh; }
-
-        /* Sidebar */
-        .sidebar { width: 260px; background: var(--bg-card); border-right: 1px solid var(--border); padding: 2rem 1.5rem; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; }
+        .sidebar { width: 260px; background: var(--bg-card); border-right: 1px solid var(--border); padding: 2rem 1.5rem; position: fixed; height: 100vh; z-index: 100; }
         .logo-container { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 3rem; }
-        .logo-circle { width: 45px; height: 45px; border-radius: 50%; background-size: cover; background-position: center; border: 2px solid var(--primary); }
-        .logo-text { font-family: 'Outfit', sans-serif; font-weight: 700; color: var(--primary); line-height: 1; }
-
-        .nav-menu { list-style: none; flex-grow: 1; }
-        .nav-item { display: flex; align-items: center; gap: 1rem; padding: 0.85rem 1rem; color: var(--text-muted); border-radius: 12px; cursor: pointer; transition: all 0.2s ease; margin-bottom: 0.5rem; font-weight: 500; }
+        .logo-circle { width: 45px; height: 45px; border-radius: 50%; background-image: url('https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=100064536828566'); background-size: cover; border: 2px solid var(--primary); }
+        .nav-item { display: flex; align-items: center; gap: 1rem; padding: 0.85rem 1rem; color: var(--text-muted); border-radius: 12px; cursor: pointer; transition: 0.2s; margin-bottom: 0.5rem; font-weight: 500; }
         .nav-item:hover { background: rgba(14, 165, 233, 0.05); color: var(--primary); }
         .nav-item.active { background: var(--primary); color: #fff; box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.3); }
-
-        /* Main Content */
-        .main-content { flex-grow: 1; margin-left: 260px; padding: 2rem 3rem; max-width: calc(100vw - 260px); }
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; }
-        .search-bar { background: var(--bg-card); border: 1px solid var(--border); padding: 0.6rem 1.2rem; border-radius: 50px; display: flex; align-items: center; gap: 0.75rem; width: 350px; box-shadow: var(--shadow); }
-        .search-bar input { border: none; background: transparent; outline: none; width: 100%; color: var(--text-main); font-size: 0.95rem; }
-
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+        .main-content { flex-grow: 1; margin-left: 260px; padding: 2rem 3rem; width: calc(100% - 260px); }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
         .card { background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border); padding: 1.5rem; box-shadow: var(--shadow); }
-        .stat-card { display: flex; flex-direction: column; gap: 0.5rem; }
-        .stat-label { font-size: 0.9rem; color: var(--text-muted); font-weight: 500; }
-        .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--primary); font-family: 'Outfit'; }
-
-        /* Table */
-        .table-container { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); margin-top: 1rem; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-        th { background: rgba(14, 165, 233, 0.05); text-align: left; padding: 1rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
-        td { padding: 1rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
-        tr:hover td { background: rgba(14, 165, 233, 0.02); }
-
-        .sticky-col { position: sticky; left: 0; background: var(--bg-card); z-index: 10; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1); }
-        th.sticky-col { z-index: 20; background: #f1f5f9; }
-
-        /* Buttons */
-        .btn { padding: 0.6rem 1.2rem; border-radius: 10px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; }
+        .table-container { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); margin-top: 1rem; background: var(--bg-card); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { background: #f1f5f9; padding: 1rem; text-align: left; font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        .sticky-col { position: sticky; left: 0; background: inherit; z-index: 10; box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1); }
+        .btn { padding: 0.6rem 1.2rem; border-radius: 10px; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
         .btn-primary { background: var(--primary); color: #fff; }
-        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
         .btn-secondary { background: rgba(100, 116, 139, 0.1); color: var(--text-muted); }
-
-        .highlight-total { background: rgba(14, 165, 233, 0.05) !important; font-weight: 700; }
         .highlight-col { background: rgba(14, 165, 233, 0.1) !important; font-weight: 700; color: var(--primary); }
-
-        .select-input { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); outline: none; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
-        
-        .fade-in { animation: fadeIn 0.3s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        .select-input { padding: 0.5rem; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-main); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
     </style>
 </head>
 <body>
     <div id="app"></div>
-
     <script>
-        // Cấu hình
-        const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1gDSN038h-QEnu5VU0Rk1N7GLthnTGparCFxN9VPVerU/export?format=csv&gid=535447968';
+        let currentTab = 'dashboard', selectedMonth = '04/2026', selectedPITQuarter = 'all', salaryData = {}, dependentOverrides = {}, searchFilter = '';
+        const GT_BT = 15500000, GT_NPT = 6200000;
 
-        // State
-        let currentTab = 'dashboard';
-        let selectedMonth = '05/2026';
-        let selectedPITQuarter = 'all'; 
-        let salaryData = {};
-        let salaryHeaders = [];
-        let dependentOverrides = {}; 
-        let searchFilter = '';
-
-        const GT_BAN_THAN = 15500000;
-        const GT_PHU_THUOC = 6200000;
-
-        // Khởi tạo
-        function initData() {
+        function init() {
             try {
-                salaryData = JSON.parse(localStorage.getItem('hospital_salary_data')) || {};
-                salaryHeaders = JSON.parse(localStorage.getItem('hospital_salary_headers')) || [];
-                dependentOverrides = JSON.parse(localStorage.getItem('hospital_dependent_overrides')) || {};
-            } catch (e) {
-                salaryData = {}; salaryHeaders = []; dependentOverrides = {};
-            }
+                salaryData = JSON.parse(localStorage.getItem('h_salary_data')) || {};
+                dependentOverrides = JSON.parse(localStorage.getItem('h_dep_ovr')) || {};
+                const keys = Object.keys(salaryData);
+                if(keys.length) selectedMonth = keys[0];
+            } catch(e) { salaryData = {}; }
+            render();
         }
 
-        function saveToLocal() {
-            localStorage.setItem('hospital_salary_data', JSON.stringify(salaryData));
-            localStorage.setItem('hospital_salary_headers', JSON.stringify(salaryHeaders));
-            localStorage.setItem('hospital_dependent_overrides', JSON.stringify(dependentOverrides));
-        }
-
-        const isRealEmployee = (e) => {
-            if (!e || !e.name) return false;
-            const name = String(e.name).trim();
-            return name.length > 3 && isNaN(name) && /[a-zA-ZÀ-ỹ]/.test(name) && !name.startsWith('Tổng');
-        };
-
-        function parseVNNumber(val) {
-            if (val === undefined || val === null) return 0;
-            const str = String(val).trim();
-            if (str === '-' || str === '' || str === '0') return 0;
-            return Math.round(parseFloat(str.replace(/\./g, '').replace(/,/g, '').replace(/\s/g, '').replace(/[^\d]/g, ''))) || 0;
+        function save() {
+            localStorage.setItem('h_salary_data', JSON.stringify(salaryData));
+            localStorage.setItem('h_dep_ovr', JSON.stringify(dependentOverrides));
         }
 
         function fmt(n) { return (n || 0).toLocaleString('vi-VN'); }
+        function parseVal(v) { return Math.round(parseFloat(String(v||'').replace(/\./g,'').replace(/,/g,'').replace(/[^\d]/g,''))) || 0; }
 
-        function processCSV(csvText) {
-            const parsed = Papa.parse(csvText, { skipEmptyLines: true });
-            const rows = parsed.data;
-            let hIdx = rows.findIndex(r => r.some(cell => cell && (cell.toString().trim() === 'TT' || cell.toString().trim() === 'STT')));
-            if (hIdx === -1) hIdx = 6; 
-            
-            salaryHeaders = rows[hIdx] ? rows[hIdx].map(h => h.toString().trim()) : [];
-            
-            const result = [];
-            for (let i = hIdx + 1; i < rows.length; i++) {
-                const row = rows[i];
-                const name = String(row[1] || '').trim();
-                if (!isRealEmployee({ name })) continue;
-
-                const coefficients = {
-                    base: row[5], area: row[6], vkhung: row[7], position: row[8],
-                    responsibility: row[9], incentive: row[10], toxic: row[11], party: row[12]
-                };
-
-                const rawAmounts = [
-                    parseVNNumber(row[13]), parseVNNumber(row[14]), parseVNNumber(row[15]),
-                    parseVNNumber(row[16]), parseVNNumber(row[17]), parseVNNumber(row[18]),
-                    parseVNNumber(row[19]), parseVNNumber(row[20]), parseVNNumber(row[21]),
-                    parseVNNumber(row[22]), parseVNNumber(row[23]), parseVNNumber(row[24]),
-                    parseVNNumber(row[25]), parseVNNumber(row[26]), parseVNNumber(row[27]),
-                    parseVNNumber(row[28]), parseVNNumber(row[29]), parseVNNumber(row[30]),
-                ];
-
-                result.push({
-                    id: String(row[0] || '').trim(),
-                    name: name,
-                    department: String(row[2] || '').trim(),
-                    position: String(row[3] || '').trim(),
-                    coefficients: coefficients,
-                    rawAmounts: rawAmounts,
-                    numDependents: parseVNNumber(row[27]) || 0,
-                    total: rawAmounts[8] || 0,
-                    net: rawAmounts[17] || 0,
+        function processCSV(text) {
+            const rows = Papa.parse(text, { skipEmptyLines: true }).data;
+            let hIdx = rows.findIndex(r => r.some(c => String(c).trim() === 'TT' || String(c).trim() === 'STT'));
+            if(hIdx === -1) hIdx = 6;
+            const headers = rows[hIdx];
+            const data = [];
+            for(let i = hIdx + 1; i < rows.length; i++) {
+                const r = rows[i];
+                const name = String(r[1]||'').trim();
+                if(name.length < 3 || !/[a-zA-ZÀ-ỹ]/.test(name) || name.includes('Cộng')) continue;
+                
+                // Ánh xạ cột cực kỳ chính xác cho BV Than Uyên
+                data.push({
+                    tt: r[0], name, dept: r[2], pos: r[3],
+                    hsl: r[5], kv: r[6], vk: r[7], cv: r[8], tn: r[9], ud: r[10], dh: r[11], cu: r[12],
+                    amounts: [
+                        parseVal(r[13]), parseVal(r[14]), parseVal(r[15]), parseVal(r[16]), parseVal(r[17]),
+                        parseVal(r[18]), parseVal(r[19]), parseVal(r[20]), parseVal(r[21]), // Index 8: Tổng lương
+                        parseVal(r[22]), parseVal(r[23]), parseVal(r[24]), parseVal(r[25]), parseVal(r[26]),
+                        parseVal(r[27]), parseVal(r[28]), parseVal(r[29]), parseVal(r[30])  // Index 17: Thực lĩnh
+                    ],
+                    npt: parseVal(r[27]) // Thường là cột AB
                 });
             }
-            return result;
+            return data;
         }
 
-        async function loadInitialData() {
-            if (salaryData[selectedMonth]) { render(); return; }
+        window.changeTab = t => { currentTab = t; render(); };
+        window.handleSearch = v => { searchFilter = v; render(); };
+        window.toggleTheme = () => { document.body.setAttribute('data-theme', document.body.getAttribute('data-theme')==='dark'?'light':'dark'); };
+        window.changeMonth = m => { selectedMonth = m; render(); };
+        window.deleteMonth = () => {
+            if(confirm(`Xóa dữ liệu tháng ${selectedMonth}?`)) {
+                delete salaryData[selectedMonth];
+                const keys = Object.keys(salaryData);
+                selectedMonth = keys.length ? keys[0] : '04/2026';
+                save(); render();
+            }
+        };
+        window.showImp = () => document.getElementById('imp-modal').style.display='flex';
+        window.hideImp = () => document.getElementById('imp-modal').style.display='none';
+        window.confirmImp = async () => {
+            const m = document.getElementById('imp-m').value, u = document.getElementById('imp-u').value;
+            if(!m || !u) return alert('Thiếu thông tin');
             try {
-                const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(SHEET_CSV_URL + '&format=csv')}`);
+                const cleanU = u.includes('/export?') ? u : u.split('/edit')[0] + '/export?format=csv&gid=' + (u.match(/gid=([0-9]+)/)?.[1] || '0');
+                const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(cleanU)}`);
                 const text = await res.text();
-                const parsed = processCSV(text);
-                if (parsed.length) { salaryData[selectedMonth] = parsed; saveToLocal(); }
-                render();
-            } catch (e) { console.error(e); render(); }
-        }
+                const d = processCSV(text);
+                if(d.length) { salaryData[m] = d; selectedMonth = m; save(); hideImp(); render(); }
+                else alert('Không tìm thấy dữ liệu nhân viên');
+            } catch(e) { alert('Lỗi: ' + e.message); }
+        };
+        window.updateNPT = (n, v) => { dependentOverrides[n] = parseInt(v)||0; save(); render(); };
 
-        const Sidebar = () => `
-            <aside class="sidebar">
-                <div class="logo-container">
-                    <div class="logo-circle" style="background-image: url('https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=100064536828566');"></div>
-                    <div><span class="logo-text">BVĐK<br><small>Than Uyên</small></span></div>
-                </div>
-                <ul class="nav-menu">
-                    <li class="nav-item ${currentTab==='dashboard'?'active':''}" onclick="changeTab('dashboard')"><i data-lucide="layout-dashboard"></i><span>Tổng quan</span></li>
-                    <li class="nav-item ${currentTab==='salary'?'active':''}" onclick="changeTab('salary')"><i data-lucide="banknote"></i><span>Bảng lương</span></li>
-                    <li class="nav-item ${currentTab==='overtime'?'active':''}" onclick="changeTab('overtime')"><i data-lucide="clock"></i><span>Trực & Ngoài giờ</span></li>
-                    <li class="nav-item ${currentTab==='bonus'?'active':''}" onclick="changeTab('bonus')"><i data-lucide="gift"></i><span>Khen thưởng</span></li>
-                    <li class="nav-item ${currentTab==='pit'?'active':''}" onclick="changeTab('pit')"><i data-lucide="shield-check"></i><span>Thuế TNCN</span></li>
-                </ul>
-                <div style="margin-top:auto;"><div class="nav-item" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Chế độ tối</span></div></div>
-            </aside>`;
-
-        const HeaderView = (title) => `
-            <header class="top-bar">
-                <h1 style="font-size:1.5rem;font-weight:700;">${title}</h1>
-                <div class="search-bar"><i data-lucide="search" size="18"></i><input type="text" id="search-input" oninput="handleSearch(this.value)" value="${searchFilter}" placeholder="Tìm kiếm..."></div>
-            </header>`;
-
-        const SalaryTable = () => {
-            const emps = (salaryData[selectedMonth] || []).filter(isRealEmployee);
-            const filtered = searchFilter ? emps.filter(e => e.name.toLowerCase().includes(searchFilter.toLowerCase()) || e.department.toLowerCase().includes(searchFilter.toLowerCase())) : emps;
-            const months = Object.keys(salaryData).sort((a,b) => b.split('/')[0] - a.split('/')[0]);
-            
-            const moneyHeaders = ['Lương chính', 'PC Vượt khung', 'PC Khác', 'PC Chức vụ', 'PC Độc hại', 'PC Trực', 'PC Ngành', 'PC Ưu đãi', 'Tổng lương', 'BHXH', 'BHYT', 'BHTN', 'KP CD', 'Thuế TNCN', 'Giảm trừ', 'Phạt', 'Tạm ứng', 'Thực lĩnh'];
-
+        const Table = () => {
+            const d = (salaryData[selectedMonth] || []).filter(e => !searchFilter || e.name.toLowerCase().includes(searchFilter.toLowerCase()));
+            const months = Object.keys(salaryData);
+            const moneyH = ['Lương chính','PC Vượt khung','PC Khác','PC Chức vụ','PC Độc hại','PC Trực','PC Ngành','PC Ưu đãi','TỔNG LƯƠNG','BHXH','BHYT','BHTN','KP CĐ','Thuế TNCN','Giảm trừ','Phạt','Tạm ứng','THỰC LĨNH'];
             return `
-            <div class="fade-in">
-                ${HeaderView('Bảng lương ' + selectedMonth)}
-                <div class="card">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;">
-                        <div style="display:flex;gap:1rem;align-items:center;">
-                            <select class="select-input" onchange="changeMonth(this.value)">${months.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join('')}</select>
-                            <button class="btn btn-secondary" onclick="deleteMonth()" style="color:#ef4444;"><i data-lucide="trash-2" size="14"></i></button>
-                        </div>
-                        <button class="btn btn-primary" onclick="showImport()">Import Tháng mới</button>
+            <div class="card fade-in">
+                <div style="display:flex;justify-content:space-between;margin-bottom:1rem;">
+                    <div style="display:flex;gap:0.5rem;align-items:center;">
+                        <select class="select-input" onchange="changeMonth(this.value)">${months.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join('')}</select>
+                        <button class="btn btn-secondary" onclick="deleteMonth()" style="color:red;"><i data-lucide="trash-2" size="14"></i></button>
                     </div>
-                    <div class="table-container" style="max-height:650px;">
-                        <table class="salary-detail-table">
-                            <thead>
-                                <tr>
-                                    <th class="sticky-col">TT</th><th class="sticky-col">Họ tên</th><th class="sticky-col">Khoa/Phòng</th>
-                                    <th>Chức vụ</th><th>HSL</th><th>KV</th><th>VK</th><th>CV</th><th>TN</th><th>ƯĐ</th><th>ĐH</th><th>CU</th>
-                                    ${moneyHeaders.map((h, i) => `<th class="${i===8?'highlight-total':(i===17?'highlight-col':'')}">${h}</th>`).join('')}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${filtered.map(e => `<tr>
-                                    <td class="sticky-col">${e.id}</td><td class="sticky-col" style="font-weight:600;">${e.name}</td><td class="sticky-col">${e.department}</td><td>${e.position}</td>
-                                    <td style="text-align:center;">${e.coefficients?.base||''}</td><td style="text-align:center;">${e.coefficients?.area||''}</td><td style="text-align:center;">${e.coefficients?.vkhung||''}</td><td style="text-align:center;">${e.coefficients?.position||''}</td><td style="text-align:center;">${e.coefficients?.responsibility||''}</td><td style="text-align:center;">${e.coefficients?.incentive||''}</td><td style="text-align:center;">${e.coefficients?.toxic||''}</td><td style="text-align:center;">${e.coefficients?.party||''}</td>
-                                    ${(e.rawAmounts||[]).map((v, i) => `<td class="${i===8?'highlight-total':(i===17?'highlight-col':'')}">${fmt(v)}</td>`).join('')}
-                                </tr>`).join('')}
-                            </tbody>
-                        </table>
-                    </div>
+                    <button class="btn btn-primary" onclick="showImp()">Import Tháng mới</button>
+                </div>
+                <div class="table-container" style="max-height:70vh;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="sticky-col">TT</th><th class="sticky-col">Họ tên</th><th class="sticky-col">Khoa</th><th>Chức vụ</th>
+                                <th>HSL</th><th>KV</th><th>VK</th><th>CV</th><th>TN</th><th>ƯĐ</th><th>ĐH</th><th>CU</th>
+                                ${moneyH.map((h,i)=>`<th class="${i===8?'highlight-col':(i===17?'highlight-col':'')}">${h}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${d.map(e=>`<tr>
+                                <td class="sticky-col">${e.tt}</td><td class="sticky-col" style="font-weight:600;">${e.name}</td><td class="sticky-col">${e.dept}</td><td>${e.pos}</td>
+                                <td>${e.hsl}</td><td>${e.kv}</td><td>${e.vk}</td><td>${e.cv}</td><td>${e.tn}</td><td>${e.ud}</td><td>${e.dh}</td><td>${e.cu}</td>
+                                ${e.amounts.map((v,i)=>`<td class="${i===8?'highlight-col':(i===17?'highlight-col':'')}">${fmt(v)}</td>`).join('')}
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
                 </div>
             </div>`;
         };
 
-        const PITModule = () => {
+        const PIT = () => {
             const all = {};
             Object.entries(salaryData).forEach(([month, data]) => {
-                const m = parseInt(month.split('/')[0]);
-                const q = m <= 3 ? '1' : (m <= 6 ? '2' : (m <= 9 ? '3' : '4'));
-                data.filter(isRealEmployee).forEach(e => {
-                    if (!all[e.name]) all[e.name] = { name: e.name, dept: e.department, months: 0, n: 0, o: 0, q: 0, v: 0, ae: 0, w: 0, x: 0, y: 0, npt: (dependentOverrides[e.name] !== undefined) ? dependentOverrides[e.name] : (e.numDependents || 0) };
-                    if (selectedPITQuarter === 'all' || selectedPITQuarter === q) {
-                        all[e.name].months++;
-                        all[e.name].n += e.rawAmounts[0]; all[e.name].o += e.rawAmounts[1]; all[e.name].q += e.rawAmounts[3];
-                        all[e.name].w += e.rawAmounts[9]; all[e.name].x += e.rawAmounts[10]; all[e.name].y += e.rawAmounts[11];
-                    }
+                data.forEach(e => {
+                    if(!all[e.name]) all[e.name] = { name: e.name, dept: e.dept, mCount: 0, n: 0, o: 0, q: 0, w: 0, x: 0, y: 0, npt: (dependentOverrides[e.name]!==undefined?dependentOverrides[e.name]:e.npt) };
+                    all[e.name].mCount++;
+                    all[e.name].n += e.amounts[0]; all[e.name].o += e.amounts[1]; all[e.name].q += e.amounts[3];
+                    all[e.name].w += e.amounts[9]; all[e.name].x += e.amounts[10]; all[e.name].y += e.amounts[11];
                 });
             });
             const list = Object.values(all).map(e => {
-                const gross = e.n + e.o + e.q + e.v + e.ae;
-                const gt_bt = e.months * GT_BAN_THAN;
-                const gt_npt = e.months * (e.npt * GT_PHU_THUOC);
-                const taxable = gross - (e.w + e.x + e.y) - gt_bt - gt_npt;
-                return { ...e, gross, gt_bt, gt_npt, taxable };
+                const gross = e.n + e.o + e.q;
+                const gt = (e.mCount * GT_BT) + (e.mCount * e.npt * GT_NPT);
+                const taxable = gross - (e.w+e.x+e.y) - gt;
+                return {...e, gross, gt, taxable};
             }).filter(e => !searchFilter || e.name.toLowerCase().includes(searchFilter.toLowerCase()));
-
             return `
-            <div class="fade-in">
-                ${HeaderView('Thuế TNCN - ' + (selectedPITQuarter==='all'?'Cả năm':'Quý '+selectedPITQuarter))}
-                <div class="card">
-                    <div style="margin-bottom:1.5rem;display:flex;gap:1rem;align-items:center;">
-                        <select class="select-input" onchange="changePITQuarter(this.value)">
-                            <option value="all" ${selectedPITQuarter==='all'?'selected':''}>Cả năm</option>
-                            <option value="1" ${selectedPITQuarter==='1'?'selected':''}>Quý I</option>
-                            <option value="2" ${selectedPITQuarter==='2'?'selected':''}>Quý II</option>
-                            <option value="3" ${selectedPITQuarter==='3'?'selected':''}>Quý III</option>
-                            <option value="4" ${selectedPITQuarter==='4'?'selected':''}>Quý IV</option>
-                        </select>
-                    </div>
-                    <div class="table-container" style="max-height:650px;">
-                        <table>
-                            <thead><tr><th class="sticky-col">Họ tên</th><th>Khoa</th><th>Thu nhập chịu thuế</th><th>GT Bản thân</th><th>NPT</th><th>GT NPT</th><th class="highlight-col">THU NHẬP TÍNH THUẾ</th></tr></thead>
-                            <tbody>${list.map(e => `<tr><td class="sticky-col" style="font-weight:600;">${e.name}</td><td>${e.dept}</td><td>${fmt(e.gross)}</td><td>${fmt(e.gt_bt)}</td><td><input type="number" value="${e.npt}" onchange="updateNPT('${e.name}', this.value)" style="width:50px;text-align:center;"></td><td>${fmt(e.gt_npt)}</td><td class="highlight-col">${fmt(e.taxable)}</td></tr>`).join('')}</tbody>
-                        </table>
-                    </div>
+            <div class="card fade-in">
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th class="sticky-col">Họ tên</th><th>Khoa</th><th>Thu nhập chịu thuế</th><th>Tổng giảm trừ</th><th>Số NPT</th><th class="highlight-col">THU NHẬP TÍNH THUẾ</th></tr></thead>
+                        <tbody>${list.map(e=>`<tr><td class="sticky-col" style="font-weight:600;">${e.name}</td><td>${e.dept}</td><td>${fmt(e.gross)}</td><td>${fmt(e.gt)}</td><td><input type="number" value="${e.npt}" onchange="updateNPT('${e.name}',this.value)" style="width:50px;text-align:center;"></td><td class="highlight-col">${fmt(e.taxable)}</td></tr>`).join('')}</tbody>
+                    </table>
                 </div>
             </div>`;
         };
 
-        const Dashboard = () => {
-            const d = (salaryData[selectedMonth] || []).filter(isRealEmployee);
-            const total = d.reduce((s, e) => s + e.total, 0);
-            const net = d.reduce((s, e) => s + e.net, 0);
-            return `<div class="fade-in">${HeaderView('Tổng quan ' + selectedMonth)}<div class="stats-grid"><div class="card stat-card"><span class="stat-label">Tổng quỹ lương</span><span class="stat-value">${fmt(total)}</span></div><div class="card stat-card"><span class="stat-label">Tổng thực lĩnh</span><span class="stat-value">${fmt(net)}</span></div><div class="card stat-card"><span class="stat-label">Nhân sự</span><span class="stat-value">${d.length}</span></div></div></div>`;
-        };
-
-        const render = () => {
+        function render() {
             const app = document.getElementById('app');
             let content = '';
-            if (currentTab === 'salary') content = SalaryTable();
-            else if (currentTab === 'pit') content = PITModule();
-            else if (currentTab === 'overtime' || currentTab === 'bonus') content = `<div class="fade-in">${HeaderView('Đang thiết kế')}<div class="card" style="text-align:center;padding:5rem;"><h2>Chức năng đang được phát triển</h2></div></div>`;
-            else content = Dashboard();
-            
-            app.innerHTML = Sidebar() + `<main class="main-content">${content}</main>` + `
-            <div id="import-modal" class="modal-overlay" style="display:none;">
-                <div class="card" style="width:400px;">
-                    <h3>Import Tháng mới</h3>
-                    <input type="text" id="imp-month" class="select-input" style="width:100%;margin:1rem 0;" value="05/2026">
-                    <input type="text" id="imp-url" class="select-input" style="width:100%;margin-bottom:1.5rem;" placeholder="Link Google Sheets">
-                    <div style="display:flex;gap:1rem;justify-content:flex-end;"><button class="btn btn-secondary" onclick="hideImport()">Hủy</button><button class="btn btn-primary" id="btn-cfm-imp" onclick="confirmImport()">Import</button></div>
-                </div>
-            </div>`;
+            if(currentTab==='salary') content = Table();
+            else if(currentTab==='pit') content = PIT();
+            else content = `<div class="stats-grid"><div class="card"><h3>Chào mừng!</h3><p>Vui lòng chọn Bảng lương hoặc Thuế TNCN để xem chi tiết.</p></div></div>`;
+
+            app.innerHTML = `
+                <aside class="sidebar">
+                    <div class="logo-container"><div class="logo-circle"></div><div><span class="logo-text">BVĐK<br><small>Than Uyên</small></span></div></div>
+                    <div class="nav-item ${currentTab==='dashboard'?'active':''}" onclick="changeTab('dashboard')"><i data-lucide="layout-dashboard"></i><span>Tổng quan</span></div>
+                    <div class="nav-item ${currentTab==='salary'?'active':''}" onclick="changeTab('salary')"><i data-lucide="banknote"></i><span>Bảng lương</span></div>
+                    <div class="nav-item ${currentTab==='pit'?'active':''}" onclick="changeTab('pit')"><i data-lucide="shield-check"></i><span>Thuế TNCN</span></div>
+                    <div style="margin-top:auto" class="nav-item" onclick="toggleTheme()"><i data-lucide="moon"></i><span>Chế độ tối</span></div>
+                </aside>
+                <main class="main-content">
+                    <header class="top-bar">
+                        <h2 style="font-weight:700">${currentTab==='salary'?'Bảng lương':(currentTab==='pit'?'Thuế TNCN':'Tổng quan')}</h2>
+                        <div style="background:var(--bg-card);border:1px solid var(--border);padding:0.5rem 1rem;border-radius:50px;display:flex;align-items:center;gap:0.5rem">
+                            <i data-lucide="search" size="16"></i><input type="text" oninput="handleSearch(this.value)" value="${searchFilter}" placeholder="Tìm tên..." style="border:none;outline:none;background:transparent;color:var(--text-main)">
+                        </div>
+                    </header>
+                    ${content}
+                </main>
+                <div id="imp-modal" class="modal-overlay" style="display:none">
+                    <div class="card" style="width:400px">
+                        <h3>Import dữ liệu</h3>
+                        <input type="text" id="imp-m" class="select-input" style="width:100%;margin:1rem 0" value="04/2026">
+                        <input type="text" id="imp-u" class="select-input" style="width:100%;margin-bottom:1.5rem" placeholder="Link Google Sheets">
+                        <div style="display:flex;gap:1rem;justify-content:flex-end"><button class="btn btn-secondary" onclick="hideImp()">Hủy</button><button class="btn btn-primary" onclick="confirmImp()">Bắt đầu</button></div>
+                    </div>
+                </div>`;
             lucide.createIcons();
-        };
+        }
 
-        // Window Actions
-        window.changeTab = (tab) => { currentTab = tab; render(); };
-        window.changeMonth = (m) => { selectedMonth = m; render(); };
-        window.handleSearch = (v) => { searchFilter = v; render(); };
-        window.toggleTheme = () => { document.body.setAttribute('data-theme', document.body.getAttribute('data-theme')==='dark'?'light':'dark'); };
-        window.showImport = () => document.getElementById('import-modal').style.display='flex';
-        window.hideImport = () => document.getElementById('import-modal').style.display='none';
-        window.deleteMonth = () => { if(confirm('Xóa tháng này?')){ delete salaryData[selectedMonth]; const keys=Object.keys(salaryData); selectedMonth=keys.length?keys[0]:'05/2026'; saveToLocal(); render(); } };
-        window.changePITQuarter = (q) => { selectedPITQuarter = q; render(); };
-        window.updateNPT = (name, val) => { dependentOverrides[name] = parseInt(val)||0; saveToLocal(); render(); };
-        window.confirmImport = async () => {
-            const m = document.getElementById('imp-month').value, u = document.getElementById('imp-url').value;
-            if(!m || !u) return alert('Thiếu thông tin');
-            const btn = document.getElementById('btn-cfm-imp'); btn.textContent='...';
-            try {
-                const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(u.includes('/export?')?u:u.split('/edit')[0]+'/export?format=csv&gid='+(u.match(/gid=([0-9]+)/)?.[1]||'0'))}`);
-                const text = await res.text();
-                const parsed = processCSV(text);
-                if(parsed.length) { salaryData[m]=parsed; selectedMonth=m; saveToLocal(); hideImport(); render(); }
-                else alert('Dữ liệu không khớp');
-            } catch(e) { alert('Lỗi: ' + e.message); } finally { btn.textContent='Import'; }
-        };
-
-        initData();
-        loadInitialData();
+        init();
     </script>
 </body>
 </html>
