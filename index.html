@@ -48,7 +48,7 @@
                 salaryData = JSON.parse(localStorage.getItem('h_salary_data')) || {};
                 dependentOverrides = JSON.parse(localStorage.getItem('h_dep_ovr')) || {};
                 const keys = Object.keys(salaryData);
-                if(keys.length) selectedMonth = keys[0];
+                if(keys.length && !salaryData[selectedMonth]) selectedMonth = keys[0];
             } catch(e) { salaryData = {}; }
             render();
         }
@@ -65,14 +65,12 @@
             const rows = Papa.parse(text, { skipEmptyLines: true }).data;
             let hIdx = rows.findIndex(r => r.some(c => String(c).trim() === 'TT' || String(c).trim() === 'STT'));
             if(hIdx === -1) hIdx = 6;
-            const headers = rows[hIdx];
             const data = [];
             for(let i = hIdx + 1; i < rows.length; i++) {
                 const r = rows[i];
                 const name = String(r[1]||'').trim();
                 if(name.length < 3 || !/[a-zA-ZÀ-ỹ]/.test(name) || name.includes('Cộng')) continue;
                 
-                // Ánh xạ cột cực kỳ chính xác cho BV Than Uyên
                 data.push({
                     tt: r[0], name, dept: r[2], pos: r[3],
                     hsl: r[5], kv: r[6], vk: r[7], cv: r[8], tn: r[9], ud: r[10], dh: r[11], cu: r[12],
@@ -82,7 +80,7 @@
                         parseVal(r[22]), parseVal(r[23]), parseVal(r[24]), parseVal(r[25]), parseVal(r[26]),
                         parseVal(r[27]), parseVal(r[28]), parseVal(r[29]), parseVal(r[30])  // Index 17: Thực lĩnh
                     ],
-                    npt: parseVal(r[27]) // Thường là cột AB
+                    npt: parseVal(r[27])
                 });
             }
             return data;
@@ -92,19 +90,26 @@
         window.handleSearch = v => { searchFilter = v; render(); };
         window.toggleTheme = () => { document.body.setAttribute('data-theme', document.body.getAttribute('data-theme')==='dark'?'light':'dark'); };
         window.changeMonth = m => { selectedMonth = m; render(); };
-        window.deleteMonth = () => {
-            if(confirm(`Xóa dữ liệu tháng ${selectedMonth}?`)) {
+        
+        // Sửa hàm xóa - Gắn trực tiếp vào window và dùng confirm chuẩn
+        window.deleteCurrentMonth = function() {
+            if (confirm('Bạn có chắc chắn muốn xóa dữ liệu tháng ' + selectedMonth + '?')) {
                 delete salaryData[selectedMonth];
                 const keys = Object.keys(salaryData);
                 selectedMonth = keys.length ? keys[0] : '04/2026';
-                save(); render();
+                save();
+                render();
+                alert('Đã xóa thành công!');
             }
         };
+
         window.showImp = () => document.getElementById('imp-modal').style.display='flex';
         window.hideImp = () => document.getElementById('imp-modal').style.display='none';
         window.confirmImp = async () => {
             const m = document.getElementById('imp-m').value, u = document.getElementById('imp-u').value;
             if(!m || !u) return alert('Thiếu thông tin');
+            const btn = document.getElementById('btn-cfm-imp');
+            btn.textContent = 'Đang xử lý...';
             try {
                 const cleanU = u.includes('/export?') ? u : u.split('/edit')[0] + '/export?format=csv&gid=' + (u.match(/gid=([0-9]+)/)?.[1] || '0');
                 const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(cleanU)}`);
@@ -113,19 +118,22 @@
                 if(d.length) { salaryData[m] = d; selectedMonth = m; save(); hideImp(); render(); }
                 else alert('Không tìm thấy dữ liệu nhân viên');
             } catch(e) { alert('Lỗi: ' + e.message); }
+            finally { btn.textContent = 'Bắt đầu'; }
         };
         window.updateNPT = (n, v) => { dependentOverrides[n] = parseInt(v)||0; save(); render(); };
 
         const Table = () => {
             const d = (salaryData[selectedMonth] || []).filter(e => !searchFilter || e.name.toLowerCase().includes(searchFilter.toLowerCase()));
-            const months = Object.keys(salaryData);
+            const months = Object.keys(salaryData).sort();
             const moneyH = ['Lương chính','PC Vượt khung','PC Khác','PC Chức vụ','PC Độc hại','PC Trực','PC Ngành','PC Ưu đãi','TỔNG LƯƠNG','BHXH','BHYT','BHTN','KP CĐ','Thuế TNCN','Giảm trừ','Phạt','Tạm ứng','THỰC LĨNH'];
             return `
             <div class="card fade-in">
-                <div style="display:flex;justify-content:space-between;margin-bottom:1rem;">
-                    <div style="display:flex;gap:0.5rem;align-items:center;">
-                        <select class="select-input" onchange="changeMonth(this.value)">${months.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join('')}</select>
-                        <button class="btn btn-secondary" onclick="deleteMonth()" style="color:red;"><i data-lucide="trash-2" size="14"></i></button>
+                <div style="display:flex;justify-content:space-between;margin-bottom:1rem;align-items:center;">
+                    <div style="display:flex;gap:0.75rem;align-items:center;">
+                        <select class="select-input" onchange="changeMonth(this.value)">${months.length ? months.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join('') : `<option>${selectedMonth}</option>`}</select>
+                        <button class="btn btn-secondary" onclick="window.deleteCurrentMonth()" style="color:red;padding:0.5rem;min-width:40px;justify-content:center;" title="Xóa tháng này">
+                            <i data-lucide="trash-2" style="pointer-events:none;"></i>
+                        </button>
                     </div>
                     <button class="btn btn-primary" onclick="showImp()">Import Tháng mới</button>
                 </div>
@@ -163,15 +171,15 @@
             const list = Object.values(all).map(e => {
                 const gross = e.n + e.o + e.q;
                 const gt = (e.mCount * GT_BT) + (e.mCount * e.npt * GT_NPT);
-                const taxable = gross - (e.w+e.x+e.y) - gt;
+                const taxable = Math.max(0, gross - (e.w+e.x+e.y) - gt);
                 return {...e, gross, gt, taxable};
-            }).filter(e => !searchFilter || e.name.toLowerCase().includes(searchFilter.toLowerCase()));
+            }).filter(e => !searchFilter || e.name.toLowerCase().includes(searchFilter.toLowerCase())).sort((a,b)=>b.taxable-a.taxable);
             return `
             <div class="card fade-in">
                 <div class="table-container">
                     <table>
                         <thead><tr><th class="sticky-col">Họ tên</th><th>Khoa</th><th>Thu nhập chịu thuế</th><th>Tổng giảm trừ</th><th>Số NPT</th><th class="highlight-col">THU NHẬP TÍNH THUẾ</th></tr></thead>
-                        <tbody>${list.map(e=>`<tr><td class="sticky-col" style="font-weight:600;">${e.name}</td><td>${e.dept}</td><td>${fmt(e.gross)}</td><td>${fmt(e.gt)}</td><td><input type="number" value="${e.npt}" onchange="updateNPT('${e.name}',this.value)" style="width:50px;text-align:center;"></td><td class="highlight-col">${fmt(e.taxable)}</td></tr>`).join('')}</tbody>
+                        <tbody>${list.map(e=>`<tr><td class="sticky-col" style="font-weight:600;">${e.name}</td><td>${e.dept}</td><td>${fmt(e.gross)}</td><td>${fmt(e.gt)}</td><td><input type="number" value="${e.npt}" onchange="updateNPT('${e.name}',this.value)" style="width:50px;text-align:center;"></td><td>${fmt(e.gt_npt||0)}</td><td class="highlight-col">${fmt(e.taxable)}</td></tr>`).join('')}</tbody>
                     </table>
                 </div>
             </div>`;
@@ -179,10 +187,11 @@
 
         function render() {
             const app = document.getElementById('app');
+            if(!app) return;
             let content = '';
             if(currentTab==='salary') content = Table();
             else if(currentTab==='pit') content = PIT();
-            else content = `<div class="stats-grid"><div class="card"><h3>Chào mừng!</h3><p>Vui lòng chọn Bảng lương hoặc Thuế TNCN để xem chi tiết.</p></div></div>`;
+            else content = `<div class="stats-grid"><div class="card"><h3>Chào mừng!</h3><p>Vui lòng chọn <b>Bảng lương</b> để xem chi tiết hoặc <b>Thuế TNCN</b> để tính toán thuế.</p></div></div>`;
 
             app.innerHTML = `
                 <aside class="sidebar">
@@ -194,8 +203,8 @@
                 </aside>
                 <main class="main-content">
                     <header class="top-bar">
-                        <h2 style="font-weight:700">${currentTab==='salary'?'Bảng lương':(currentTab==='pit'?'Thuế TNCN':'Tổng quan')}</h2>
-                        <div style="background:var(--bg-card);border:1px solid var(--border);padding:0.5rem 1rem;border-radius:50px;display:flex;align-items:center;gap:0.5rem">
+                        <h2 style="font-weight:700;color:var(--primary)">${currentTab==='salary'?'Bảng lương ' + selectedMonth:(currentTab==='pit'?'Thuế TNCN':'Tổng quan')}</h2>
+                        <div style="background:var(--bg-card);border:1px solid var(--border);padding:0.5rem 1rem;border-radius:50px;display:flex;align-items:center;gap:0.5rem;box-shadow:var(--shadow)">
                             <i data-lucide="search" size="16"></i><input type="text" oninput="handleSearch(this.value)" value="${searchFilter}" placeholder="Tìm tên..." style="border:none;outline:none;background:transparent;color:var(--text-main)">
                         </div>
                     </header>
@@ -204,9 +213,15 @@
                 <div id="imp-modal" class="modal-overlay" style="display:none">
                     <div class="card" style="width:400px">
                         <h3>Import dữ liệu</h3>
-                        <input type="text" id="imp-m" class="select-input" style="width:100%;margin:1rem 0" value="04/2026">
-                        <input type="text" id="imp-u" class="select-input" style="width:100%;margin-bottom:1.5rem" placeholder="Link Google Sheets">
-                        <div style="display:flex;gap:1rem;justify-content:flex-end"><button class="btn btn-secondary" onclick="hideImp()">Hủy</button><button class="btn btn-primary" onclick="confirmImp()">Bắt đầu</button></div>
+                        <div style="margin:1rem 0">
+                            <label style="font-size:0.8rem;color:var(--text-muted)">Tháng/Năm (Ví dụ: 04/2026)</label>
+                            <input type="text" id="imp-m" class="select-input" style="width:100%" value="04/2026">
+                        </div>
+                        <div style="margin-bottom:1.5rem">
+                            <label style="font-size:0.8rem;color:var(--text-muted)">Link Google Sheets CSV</label>
+                            <input type="text" id="imp-u" class="select-input" style="width:100%" placeholder="Dán link vào đây...">
+                        </div>
+                        <div style="display:flex;gap:1rem;justify-content:flex-end"><button class="btn btn-secondary" onclick="hideImp()">Hủy</button><button class="btn btn-primary" id="btn-cfm-imp" onclick="confirmImp()">Bắt đầu</button></div>
                     </div>
                 </div>`;
             lucide.createIcons();
