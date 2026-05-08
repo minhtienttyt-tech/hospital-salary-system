@@ -1,0 +1,134 @@
+(function(){let e=document.createElement(`link`).relList;if(e&&e.supports&&e.supports(`modulepreload`))return;for(let e of document.querySelectorAll(`link[rel="modulepreload"]`))n(e);new MutationObserver(e=>{for(let t of e)if(t.type===`childList`)for(let e of t.addedNodes)e.tagName===`LINK`&&e.rel===`modulepreload`&&n(e)}).observe(document,{childList:!0,subtree:!0});function t(e){let t={};return e.integrity&&(t.integrity=e.integrity),e.referrerPolicy&&(t.referrerPolicy=e.referrerPolicy),e.crossOrigin===`use-credentials`?t.credentials=`include`:e.crossOrigin===`anonymous`?t.credentials=`omit`:t.credentials=`same-origin`,t}function n(e){if(e.ep)return;e.ep=!0;let n=t(e);fetch(e.href,n)}})();var e=`https://docs.google.com/spreadsheets/d/1Hv_suFrUYa5ZInJrYbOLkGCYwJv4A7w_YAyysgMZlAk/export?format=csv&gid=535447968`,t=`dashboard`,n=`05/2026`,r=`all`,i={},a=[],o={},s=``,c=155e5,l=62e5;try{i=JSON.parse(localStorage.getItem(`hospital_salary_data`))||{},a=JSON.parse(localStorage.getItem(`hospital_salary_headers`))||[],o=JSON.parse(localStorage.getItem(`hospital_dependent_overrides`))||{}}catch{i={},a=[],o={}}function u(){localStorage.setItem(`hospital_salary_data`,JSON.stringify(i)),localStorage.setItem(`hospital_salary_headers`,JSON.stringify(a)),localStorage.setItem(`hospital_dependent_overrides`,JSON.stringify(o))}var d=e=>{if(!e||!e.name)return!1;let t=String(e.name).trim();return t.length>3&&isNaN(t)&&/[a-zA-ZÀ-ỹ]/.test(t)&&!t.startsWith(`Tổng`)};function f(e){if(!e)return``;let t=e.trim();if(t.includes(`/export?`))return t;if(t.includes(`docs.google.com/spreadsheets`)){let e=t.split(`/edit`)[0],n=t.match(/gid=([0-9]+)/);return`${e}/export?format=csv${n?`&gid=`+n[1]:``}`}return t}function p(e){if(e==null)return 0;let t=String(e).trim();return t===`-`||t===``||t===`0`?0:Math.round(parseFloat(t.replace(/\./g,``).replace(/,/g,``).replace(/\s/g,``).replace(/[^\d]/g,``)))||0}function m(e){return(e||0).toLocaleString(`vi-VN`)}function h(e){let t=Papa.parse(e,{skipEmptyLines:!0}).data,n=t.findIndex(e=>e.some(e=>e&&(e.toString().trim()===`TT`||e.toString().trim()===`STT`)));n===-1&&(n=6),a=t[n]?t[n].map(e=>e.toString().trim()):[];let r=[];for(let e=n+1;e<t.length;e++){let n=t[e],i=String(n[1]||``).trim();if(!d({name:i}))continue;let a={base:n[4],area:n[5],vkhung:n[6],position:n[7],responsibility:n[8],incentive:n[9],toxic:n[10],party:n[11]},o=[p(n[13]),p(n[14]),p(n[15]),p(n[16]),p(n[17]),p(n[18]),p(n[19]),p(n[20]),p(n[21]),p(n[22]),p(n[23]),p(n[24]),p(n[25]),p(n[26]),p(n[27]),p(n[28]),p(n[29]),p(n[30]),p(n[31])];r.push({id:String(n[0]||``).trim(),name:i,department:String(n[2]||``).trim(),position:String(n[3]||``).trim(),coefficients:a,rawAmounts:o,numDependents:p(n[27])||0,total:o[8]||0,net:o[18]||0})}return r}async function g(){if(i[n]&&i[n].length>0){C();return}C();try{let t=h(await(await fetch(`https://corsproxy.io/?${encodeURIComponent(f(e))}`)).text());t.length&&(i[n]=t,u())}catch(e){console.error(e)}finally{C()}}var _=()=>`
+  <aside class="sidebar">
+    <div class="logo-container">
+      <div class="logo-circle" style="background-image: url('https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=100064536828566');"></div>
+      <div><span class="logo-text">BVĐK<br><small>Than Uyên</small></span></div>
+    </div>
+    <ul class="nav-menu">
+      <li class="nav-item ${t===`dashboard`?`active`:``}" data-tab="dashboard"><i data-lucide="layout-dashboard"></i><span>Tổng quan</span></li>
+      <li class="nav-item ${t===`salary`?`active`:``}" data-tab="salary"><i data-lucide="banknote"></i><span>Bảng lương</span></li>
+      <li class="nav-item ${t===`overtime`?`active`:``}" data-tab="overtime"><i data-lucide="clock"></i><span>Trực & Ngoài giờ</span></li>
+      <li class="nav-item ${t===`bonus`?`active`:``}" data-tab="bonus"><i data-lucide="gift"></i><span>Khen thưởng</span></li>
+      <li class="nav-item ${t===`pit`?`active`:``}" data-tab="pit"><i data-lucide="shield-check"></i><span>Thuế TNCN</span></li>
+    </ul>
+    <div style="margin-top:auto;"><div class="nav-item" id="theme-toggle"><i data-lucide="moon"></i><span>Chế độ tối</span></div></div>
+  </aside>`,v=e=>`
+  <header class="top-bar">
+    <h1 style="font-size:1.5rem;font-weight:700;">${e}</h1>
+    <div class="search-bar"><i data-lucide="search" size="18"></i><input type="text" id="search-input" placeholder="Tìm kiếm..."></div>
+  </header>`,y=()=>{let e=(i[n]||[]).filter(d),t=s?e.filter(e=>e.name.toLowerCase().includes(s.toLowerCase())||e.department.toLowerCase().includes(s.toLowerCase())):e,r=Object.keys(i).sort((e,t)=>t.split(`/`)[0]-e.split(`/`)[0]);return`
+  <div class="fade-in">
+    ${v(`Bảng lương `+n)}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;">
+        <div style="display:flex;gap:1rem;align-items:center;">
+          <select class="select-input" id="month-selector">${r.length?r.map(e=>`<option value="${e}" ${n===e?`selected`:``}>${e}</option>`).join(``):`<option>${n}</option>`}</select>
+          <button class="btn btn-secondary" onclick="window.deleteMonth()" style="color:#ef4444;font-size:0.85rem;">🗑️ Xóa</button>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <button class="btn btn-secondary" onclick="window.exportSalaryToExcel()" title="Xuất Excel"><i data-lucide="file-spreadsheet" size="16"></i> Excel</button>
+          <button class="btn btn-secondary" onclick="window.exportSalaryToPDF()" title="Xuất PDF"><i data-lucide="file-text" size="16"></i> PDF</button>
+          <button class="btn btn-primary" id="import-btn">Import Tháng mới</button>
+        </div>
+      </div>
+      <div class="table-container" style="max-height:650px;">
+        <table class="salary-detail-table">
+          <thead>
+            <tr>
+              <th class="sticky-col">TT</th><th class="sticky-col">Họ tên</th><th class="sticky-col">Khoa/Phòng</th>
+              <th>Chức vụ</th><th>HSL</th><th>KV</th><th>VK</th><th>CV</th><th>TN</th><th>ƯĐ</th><th>ĐH</th><th>CU</th>
+              ${[`Lương chính`,`PC vượt khung`,`PC Khu vực`,`PC Chức vụ`,`PC Trách nhiệm`,`PC ưu đãi ngành`,`PC Độc hại`,`PC cấp ủy`,`Tổng cộng lương`,`Khấu trừ 10,5% BH`,`KT 10,5% BH CV`,`KT 10,5% BH VK`,`Trừ ốm LC`,`Trừ ốm VK`,`Trừ ốm CV`,`Trừ ốm TN`,`Trừ ốm ƯĐ`,`Trừ ốm ĐH`,`Tổng lĩnh`].map((e,t)=>`<th class="${t===8?`highlight-total`:t===18?`highlight-col`:``}">${e}</th>`).join(``)}
+            </tr>
+          </thead>
+          <tbody>
+            ${t.map(e=>`<tr>
+              <td class="sticky-col">${e.id}</td><td class="sticky-col" style="font-weight:600;">${e.name}</td><td class="sticky-col">${e.department}</td><td>${e.position}</td>
+              <td class="text-center">${e.coefficients?.base||``}</td><td class="text-center">${e.coefficients?.area||``}</td><td class="text-center">${e.coefficients?.vkhung||``}</td><td class="text-center">${e.coefficients?.position||``}</td><td class="text-center">${e.coefficients?.responsibility||``}</td><td class="text-center">${e.coefficients?.incentive||``}</td><td class="text-center">${e.coefficients?.toxic||``}</td><td class="text-center">${e.coefficients?.party||``}</td>
+              ${(e.rawAmounts||Array(19).fill(0)).map((e,t)=>`<td class="${t===8?`highlight-total`:t===18?`highlight-col`:``}">${m(e)}</td>`).join(``)}
+            </tr>`).join(``)}
+          </tbody>
+          <tfoot>
+            <tr style="font-weight:700;background:var(--card-bg);border-top:2px solid var(--accent);">
+              <td class="sticky-col"></td><td class="sticky-col" style="color:var(--accent);">Tổng cộng (${t.length} người)</td><td class="sticky-col"></td><td></td>
+              <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+              ${Array.from({length:19},(e,n)=>{let r=t.reduce((e,t)=>e+((t.rawAmounts||[])[n]||0),0);return`<td class="${n===8?`highlight-total`:n===18?`highlight-col`:``}" style="font-weight:700;">${m(r)}</td>`}).join(``)}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>`},b=()=>{let e={};Object.entries(i).forEach(([t,n])=>{if(!Array.isArray(n))return;let i=parseInt(t.split(`/`)[0]),a=i<=3?`1`:i<=6?`2`:i<=9?`3`:`4`;n.filter(d).forEach(t=>{e[t.name]||(e[t.name]={name:t.name,dept:t.department,monthsInPeriod:0,n:0,o:0,q_val:0,v_val:0,ae_val:0,w:0,x:0,y:0,numDependents:o[t.name]===void 0?t.numDependents||0:o[t.name]}),(r===`all`||r===a)&&(e[t.name].monthsInPeriod+=1,t.rawAmounts&&(e[t.name].n+=t.rawAmounts[0],e[t.name].o+=t.rawAmounts[1],e[t.name].q_val+=t.rawAmounts[3],e[t.name].v_val+=0,e[t.name].ae_val+=0,e[t.name].w+=t.rawAmounts[9],e[t.name].x+=t.rawAmounts[10],e[t.name].y+=t.rawAmounts[11]))})});let t=Object.values(e).map(e=>{let t=e.n+e.o+e.q_val+e.v_val+e.ae_val,n=e.monthsInPeriod*c,r=e.monthsInPeriod*(e.numDependents*l),i=t-(e.w+e.x+e.y)-n-r;return{...e,gross_taxable:t,gt_bt:n,gt_npt:r,taxable:i}}).sort((e,t)=>t.taxable-e.taxable),n=s?t.filter(e=>e.name.toLowerCase().includes(s.toLowerCase())):t;return`
+  <div class="fade-in">
+    ${v(`Thuế TNCN - Thu nhập tính thuế `+(r===`all`?`Cả năm`:`Quý ${r}`))}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;gap:1rem;">
+        <div style="display:flex;align-items:center;gap:1rem;">
+          <label style="font-weight:600;color:var(--text-muted);">Thời gian:</label>
+          <select class="select-input" id="pit-quarter-selector" style="min-width:150px;">
+            <option value="all" ${r===`all`?`selected`:``}>Cả năm</option>
+            <option value="1" ${r===`1`?`selected`:``}>Quý I</option>
+            <option value="2" ${r===`2`?`selected`:``}>Quý II</option>
+            <option value="3" ${r===`3`?`selected`:``}>Quý III</option>
+            <option value="4" ${r===`4`?`selected`:``}>Quý IV</option>
+          </select>
+          <span style="font-size:0.85rem;color:var(--text-muted);">(GT Bản thân: 15.5M/tháng, NPT: 6.2M/tháng)</span>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn btn-secondary" onclick="window.exportPITToExcel()"><i data-lucide="file-spreadsheet" size="16"></i> Excel</button>
+          <button class="btn btn-secondary" onclick="window.exportPITToPDF()"><i data-lucide="file-text" size="16"></i> PDF</button>
+        </div>
+      </div>
+      
+      <div class="table-container" style="max-height:700px;">
+        <table style="font-size:0.85rem;" class="salary-detail-table">
+          <thead>
+            <tr>
+              <th class="sticky-col">Họ và tên</th><th class="sticky-col">Khoa/Phòng</th>
+              <th>Lương chính (N)</th><th>PC Vượt khung (O)</th><th>PC Chức vụ (Q)</th>
+              <th style="color:var(--text-muted);">Ngoài giờ</th><th style="color:var(--text-muted);">Thưởng</th>
+              <th style="background:rgba(14, 165, 233, 0.1);font-weight:700;color:var(--primary);">Tổng thu nhập chịu thuế</th>
+              <th>BHXH 10% (W)</th><th>BH Chức vụ (X)</th><th>BH VK (Y)</th>
+              <th>GT Bản thân</th><th style="background:#fef9c3;color:#a16207;">Số NPT</th><th>GT Người phụ thuộc</th>
+              <th class="highlight-col">THU NHẬP TÍNH THUẾ</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${n.map(e=>`<tr>
+              <td class="sticky-col" style="font-weight:600;">${e.name}</td>
+              <td class="sticky-col">${e.dept}</td>
+              <td>${m(e.n)}</td><td>${m(e.o)}</td><td>${m(e.q_val)}</td>
+              <td style="color:var(--text-muted);opacity:0.6;">${m(e.v_val)}</td><td style="color:var(--text-muted);opacity:0.6;">${m(e.ae_val)}</td>
+              <td style="font-weight:700;color:var(--primary);background:rgba(14, 165, 233, 0.05);">${m(e.gross_taxable)}</td>
+              <td style="color:#ef4444;">${m(e.w)}</td><td style="color:#ef4444;">${m(e.x)}</td><td style="color:#ef4444;">${m(e.y)}</td>
+              <td>${m(e.gt_bt)}</td>
+              <td><input type="number" class="select-input npt-input" data-name="${e.name}" value="${e.numDependents}" style="width:60px;text-align:center;padding:2px;"></td>
+              <td>${m(e.gt_npt)}</td>
+              <td class="highlight-col" style="font-weight:700;color:var(--primary);">${m(e.taxable)}</td>
+            </tr>`).join(``)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`},x=e=>`
+  <div class="fade-in">
+    ${v(e)}
+    <div class="card" style="height:400px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--text-muted);">
+      <div style="background:rgba(14, 165, 233, 0.1);padding:2rem;border-radius:50%;margin-bottom:1.5rem;">
+        <i data-lucide="construction" size="48" style="color:var(--primary);"></i>
+      </div>
+      <h2>Phân hệ đang được thiết kế</h2>
+      <p>Sau khi hoàn thành, số liệu từ đây sẽ được tổng hợp tự động sang bảng Thuế TNCN.</p>
+    </div>
+  </div>`,S=()=>{let e=(i[n]||[]).filter(d),t=e.reduce((e,t)=>e+t.total,0),r=e.reduce((e,t)=>e+t.net,0);return`<div class="fade-in">${v(`Tổng quan `+n)}<div class="stats-grid"><div class="card stat-card"><span class="stat-label">Tổng quỹ lương</span><span class="stat-value">${m(t)}</span></div><div class="card stat-card"><span class="stat-label">Tổng thực lĩnh</span><span class="stat-value">${m(r)}</span></div><div class="card stat-card"><span class="stat-label">Nhân sự</span><span class="stat-value">${e.length}</span></div></div></div>`},C=()=>{let e=document.getElementById(`app`);if(!e)return;let a=``;switch(t){case`salary`:a=y();break;case`pit`:a=b();break;case`overtime`:a=x(`Quản lý Trực & Ngoài giờ`);break;case`bonus`:a=x(`Quản lý Khen thưởng`);break;default:a=S()}e.innerHTML=`${_()}<main class="main-content">${a}</main><div id="import-modal" class="modal-overlay" style="display:none;"><div class="card modal-content" style="max-width:500px;"><h2>Import dữ liệu</h2><input type="text" id="import-month-name" class="select-input" style="width:100%;margin:1rem 0;" value="${n}"><input type="text" id="import-url" class="select-input" style="width:100%;margin-bottom:1.5rem;" placeholder="Link Google Sheets CSV"><div style="display:flex;gap:1rem;justify-content:flex-end;"><button class="btn btn-secondary" id="close-modal">Hủy</button><button class="btn btn-primary" id="confirm-import">Bắt đầu Import</button></div></div></div>`,lucide.createIcons(),document.querySelectorAll(`.nav-item[data-tab]`).forEach(e=>e.onclick=()=>{t=e.dataset.tab,C()});let c=document.getElementById(`search-input`);c&&(c.value=s,c.oninput=e=>{s=e.target.value,C()});let l=document.getElementById(`month-selector`);l&&(l.onchange=e=>{n=e.target.value,C()});let d=document.getElementById(`pit-quarter-selector`);d&&(d.onchange=e=>{r=e.target.value,C()}),document.querySelectorAll(`.npt-input`).forEach(e=>{e.onchange=e=>{let t=e.target.dataset.name,n=parseInt(e.target.value)||0;o[t]=n,u(),C()}});let p=document.getElementById(`import-btn`),m=document.getElementById(`import-modal`),g=document.getElementById(`close-modal`),v=document.getElementById(`confirm-import`);p&&(p.onclick=()=>m.style.display=`flex`),g&&(g.onclick=()=>m.style.display=`none`),v&&(v.onclick=async()=>{let e=document.getElementById(`import-month-name`).value.trim(),t=document.getElementById(`import-url`).value.trim();if(!e||!t)return alert(`Thiếu thông tin`);v.textContent=`Đang xử lý...`,v.disabled=!0;try{let r=h(await(await fetch(`https://corsproxy.io/?${encodeURIComponent(f(t))}`)).text());if(!r.length)throw Error(`Dữ liệu không hợp lệ`);i[e]=r,n=e,u(),m.style.display=`none`,C()}catch(e){alert(`Lỗi: `+e.message)}finally{v.textContent=`Bắt đầu Import`,v.disabled=!1}});let w=document.getElementById(`theme-toggle`);w&&(w.onclick=()=>{document.body.setAttribute(`data-theme`,document.body.getAttribute(`data-theme`)===`dark`?`light`:`dark`)}),window.lucide&&window.lucide.createIcons()};window.deleteMonth=function(){if(confirm(`Bạn có chắc chắn muốn xóa dữ liệu tháng `+n+`?`)){delete i[n];let e=Object.keys(i);n=e.length?e[0]:`05/2026`,u(),C(),alert(`Đã xóa thành công!`)}},window.exportSalaryToExcel=function(){let e=(i[n]||[]).filter(d),t=[`Lương chính`,`PC vượt khung`,`PC Khu vực`,`PC Chức vụ`,`PC Trách nhiệm`,`PC ưu đãi ngành`,`PC Độc hại`,`PC cấp ủy`,`Tổng cộng lương`,`Khấu trừ 10,5% BH`,`KT 10,5% BH CV`,`KT 10,5% BH VK`,`Trừ ốm LC`,`Trừ ốm VK`,`Trừ ốm CV`,`Trừ ốm TN`,`Trừ ốm ƯĐ`,`Trừ ốm ĐH`,`Tổng lĩnh`],r=e.map(e=>{let n={TT:e.id,"Họ tên":e.name,"Khoa/Phòng":e.department,"Chức vụ":e.position,HSL:e.coefficients?.base,KV:e.coefficients?.area,VK:e.coefficients?.vkhung,CV:e.coefficients?.position,TN:e.coefficients?.responsibility,ƯĐ:e.coefficients?.incentive,ĐH:e.coefficients?.toxic,CU:e.coefficients?.party};return t.forEach((t,r)=>{n[t]=(e.rawAmounts||[])[r]||0}),n}),a=XLSX.utils.json_to_sheet(r),o=XLSX.utils.book_new();XLSX.utils.book_append_sheet(o,a,`Bang Luong`),XLSX.writeFile(o,`Bang_Luong_${n.replace(`/`,`-`)}.xlsx`)},window.exportSalaryToPDF=function(){let e=document.querySelector(`.salary-detail-table`);if(!e)return;let t=document.createElement(`div`);t.style.padding=`20px`,t.style.background=`#fff`,t.innerHTML=`
+    <div style="text-align:center;margin-bottom:20px;font-family:Arial,sans-serif;">
+      <h2 style="margin:0;color:#1e40af;text-transform:uppercase;font-size:18px;">BỆNH VIỆN ĐA KHOA HUYỆN THAN UYÊN</h2>
+      <h3 style="margin:5px 0;font-size:16px;">BẢNG LƯƠNG CHI TIẾT THÁNG ${n}</h3>
+      <hr style="border:1px solid #eee;margin:15px 0;">
+    </div>
+  `;let r=e.cloneNode(!0);r.style.width=`100%`,r.style.fontSize=`10px`,t.appendChild(r);let i={margin:[10,5,10,5],filename:`Bang_Luong_${n.replace(`/`,`-`)}.pdf`,image:{type:`jpeg`,quality:.98},html2canvas:{scale:2,useCORS:!0,letterRendering:!0},jsPDF:{unit:`mm`,format:`a4`,orientation:`landscape`}};html2pdf().set(i).from(t).save()},window.exportPITToExcel=function(){let e=r===`all`?`Ca_nam`:`Quy_${r}`,t=document.querySelector(`.salary-detail-table`);if(!t)return;let n=XLSX.utils.table_to_book(t);XLSX.writeFile(n,`Thue_TNCN_${e}.xlsx`)},window.exportPITToPDF=function(){let e=document.querySelector(`.salary-detail-table`);if(!e)return;let t=r===`all`?`CẢ NĂM`:`QUÝ ${r}`,n=document.createElement(`div`);n.style.padding=`20px`,n.style.background=`#fff`,n.innerHTML=`
+    <div style="text-align:center;margin-bottom:20px;font-family:Arial,sans-serif;">
+      <h2 style="margin:0;color:#1e40af;text-transform:uppercase;font-size:18px;">BỆNH VIỆN ĐA KHOA HUYỆN THAN UYÊN</h2>
+      <h3 style="margin:5px 0;font-size:16px;">BẢNG KÊ THU NHẬP TÍNH THUẾ TNCN - ${t}</h3>
+      <hr style="border:1px solid #eee;margin:15px 0;">
+    </div>
+  `;let i=e.cloneNode(!0);i.style.width=`100%`,i.style.fontSize=`10px`,n.appendChild(i);let a={margin:[10,5,10,5],filename:`Thue_TNCN_${t.replace(` `,`_`)}.pdf`,image:{type:`jpeg`,quality:.98},html2canvas:{scale:2,useCORS:!0,letterRendering:!0},jsPDF:{unit:`mm`,format:`a4`,orientation:`landscape`}};html2pdf().set(a).from(n).save()},g(),C();
