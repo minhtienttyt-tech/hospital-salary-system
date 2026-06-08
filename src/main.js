@@ -290,7 +290,7 @@ function aggregateData(dataObj, monthList) {
           summary[name].rawAmounts = Array(row.rawAmounts.length).fill(0);
         }
       }
-      summary[name].months_count++;
+      summary[name].months_count += (row.months !== undefined ? row.months : 1);
       Object.keys(row).forEach(k => {
         if (typeof row[k] === 'number') {
           summary[name][k] = (summary[name][k] || 0) + row[k];
