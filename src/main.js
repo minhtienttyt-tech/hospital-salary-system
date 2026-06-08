@@ -9,6 +9,7 @@ let selectedPITQuarter = 'all';
 let salaryData = {};
 let overtimeData = {};
 let bonusData = {};
+let nq20Data = {};
 let salaryHeaders = [];
 let dependentOverrides = {}; 
 let isLoading = false;
@@ -16,6 +17,12 @@ let searchFilter = '';
 let viewMode = 'monthly'; // 'monthly' hoặc 'summary'
 let summaryPeriod = 'q1'; // 'q1', 'q2', 'q3', 'q4', 'all'
 let previewData = null; // Dữ liệu cho modal xem trước
+let budgetSubTab = 'salary'; // 'salary', 'coefficients', 'template'
+let budgetBaseSalary = 2340000;
+let budgetYear = 2026;
+let budgetBaseMonth = null; 
+let budgetContractEmployees = new Set();
+let budgetManualInputs = {};
 
 // Định mức giảm trừ thuế
 const GT_BAN_THAN = 15500000;
@@ -26,19 +33,31 @@ try {
   salaryData = JSON.parse(localStorage.getItem('hospital_salary_data')) || {};
   overtimeData = JSON.parse(localStorage.getItem('hospital_overtime_data')) || {};
   bonusData = JSON.parse(localStorage.getItem('hospital_bonus_data')) || {};
+  nq20Data = JSON.parse(localStorage.getItem('hospital_nq20_data')) || {};
   salaryHeaders = JSON.parse(localStorage.getItem('hospital_salary_headers')) || [];
   dependentOverrides = JSON.parse(localStorage.getItem('hospital_dependent_overrides')) || {};
 } catch (e) {
-  salaryData = {}; overtimeData = {}; bonusData = {}; salaryHeaders = []; dependentOverrides = {};
+  salaryData = {}; overtimeData = {}; bonusData = {}; nq20Data = {}; salaryHeaders = []; dependentOverrides = {};
 }
 
 function saveToLocal() {
   localStorage.setItem('hospital_salary_data', JSON.stringify(salaryData));
   localStorage.setItem('hospital_overtime_data', JSON.stringify(overtimeData));
   localStorage.setItem('hospital_bonus_data', JSON.stringify(bonusData));
+  localStorage.setItem('hospital_nq20_data', JSON.stringify(nq20Data));
   localStorage.setItem('hospital_salary_headers', JSON.stringify(salaryHeaders));
   localStorage.setItem('hospital_dependent_overrides', JSON.stringify(dependentOverrides));
 }
+
+window.deleteNQ20Month = function() {
+  const ms = document.getElementById('nq20-month-selector') || document.getElementById('month-selector');
+  if(ms) selectedMonth = ms.value;
+  if (confirm('Xóa dữ liệu đãi ngộ NQ20 tháng ' + selectedMonth + '?')) {
+    delete nq20Data[selectedMonth];
+    saveToLocal();
+    render();
+  }
+};
 
 window.deleteBonusMonth = function() {
   const ms = document.getElementById('bn-month-selector') || document.getElementById('month-selector');
@@ -87,6 +106,13 @@ function parseVNNumber(val) {
   const sign = /^-/.test(text) ? -1 : 1;
   const clean = text.replace(/[^\d]/g, '');
   return sign * (parseInt(clean) || 0);
+}
+
+function parseCoef(val) {
+  if (typeof val === 'number') return val;
+  if (!val) return 0;
+  const text = val.toString().trim().replace(',', '.');
+  return parseFloat(text) || 0;
 }
 
 function sortMonthsDesc(months) {
@@ -236,7 +262,9 @@ const Sidebar = () => `
       <li class="nav-item ${currentTab==='salary'?'active':''}" data-tab="salary"><i data-lucide="banknote"></i><span>Bảng lương</span></li>
       <li class="nav-item ${currentTab==='overtime'?'active':''}" data-tab="overtime"><i data-lucide="clock"></i><span>Trực & Ngoài giờ</span></li>
       <li class="nav-item ${currentTab==='bonus'?'active':''}" data-tab="bonus"><i data-lucide="gift"></i><span>Khen thưởng</span></li>
+      <li class="nav-item ${currentTab==='nq20'?'active':''}" data-tab="nq20"><i data-lucide="award"></i><span>Chế độ NQ20</span></li>
       <li class="nav-item ${currentTab==='pit'?'active':''}" data-tab="pit"><i data-lucide="calculator"></i><span>Thuế TNCN</span></li>
+      <li class="nav-item ${currentTab==='budget'?'active':''}" data-tab="budget"><i data-lucide="trending-up"></i><span>Dự toán N+1</span></li>
     </ul>
     <div class="sidebar-footer">
       <button id="theme-toggle" class="icon-btn" title="Đổi màu nền"><i data-lucide="moon"></i></button>
@@ -375,6 +403,7 @@ const PITModule = () => {
           rawAmounts: Array(19).fill(0),
           otAmount: 0,
           bonusAmount: 0,
+          nq20Amount: 0,
           numDependents: (dependentOverrides[e.name] !== undefined) ? dependentOverrides[e.name] : (e.numDependents || 0)
         };
       }
@@ -386,10 +415,13 @@ const PITModule = () => {
       const bnMonthData = bonusData[month] || [];
       const bnEntry = bnMonthData.find(bn => bn.name === e.name);
       all[e.name].bonusAmount += bnEntry ? bnEntry.amount : 0;
+      const nq20MonthData = nq20Data[month] || [];
+      const nq20Entry = nq20MonthData.find(n => n.name === e.name);
+      all[e.name].nq20Amount += nq20Entry ? nq20Entry.amount : 0;
     });
   });
   const list = Object.values(all).map(e => {
-    const gross_taxable = e.rawAmounts[8] + e.otAmount + e.bonusAmount; 
+    const gross_taxable = e.rawAmounts[8] + e.otAmount + e.bonusAmount + e.nq20Amount; 
     const gt_bt = e.monthsInPeriod * GT_BAN_THAN;
     const gt_npt = e.monthsInPeriod * (e.numDependents * GT_PHU_THUOC);
     const insurance = (e.rawAmounts[9] || 0) + (e.rawAmounts[10] || 0) + (e.rawAmounts[11] || 0);
@@ -422,6 +454,7 @@ const PITModule = () => {
               ${moneyHeaders.map((h, i) => `<th class="${i===8?'highlight-total':(i===18?'highlight-col':'')}">${h}</th>`).join('')}
               <th style="background:rgba(14, 165, 233, 0.1);">Ngoài giờ</th>
               <th style="background:rgba(14, 165, 233, 0.1);">Thưởng</th>
+              <th style="background:rgba(14, 165, 233, 0.1);">NQ20</th>
               <th class="highlight-col">TN TÍNH THUẾ</th>
               <th>Số NPT</th>
             </tr>
@@ -434,6 +467,7 @@ const PITModule = () => {
               ${e.rawAmounts.map((v, i) => `<td class="${i===8?'highlight-total':(i===18?'highlight-col':'')}">${fmt(v)}</td>`).join('')}
               <td style="background:rgba(14, 165, 233, 0.05);">${fmt(e.otAmount)}</td>
               <td style="background:rgba(14, 165, 233, 0.05);">${fmt(e.bonusAmount)}</td>
+              <td style="background:rgba(14, 165, 233, 0.05);">${fmt(e.nq20Amount)}</td>
               <td class="highlight-col" style="font-weight:700;color:var(--primary);">${fmt(e.taxable > 0 ? e.taxable : 0)}</td>
               <td><input type="number" class="select-input npt-input" data-name="${e.name}" value="${e.numDependents}" style="width:50px;text-align:center;padding:2px;"></td>
             </tr>`).join('')}
@@ -548,6 +582,130 @@ const OvertimeModule = () => {
   </div>`;
 };
 
+const NQ20Module = () => {
+  let filtered = [];
+  let title = '';
+  if (viewMode === 'monthly') {
+    const emps = nq20Data[selectedMonth] || [];
+    filtered = searchFilter ? emps.filter(e => e.name.toLowerCase().includes(searchFilter.toLowerCase())) : emps;
+    title = `Danh sách Đãi ngộ NQ20 ${selectedMonth}`;
+  } else {
+    const months = getMonthsInPeriod(summaryPeriod);
+    const agg = aggregateData(nq20Data, months);
+    filtered = searchFilter ? agg.filter(e => e.name.toLowerCase().includes(searchFilter.toLowerCase())) : agg;
+    title = 'Tổng hợp Đãi ngộ NQ20 ' + (summaryPeriod === 'all' ? 'Cả năm' : 'Quý ' + summaryPeriod[1]);
+  }
+  const months = sortMonthsDesc(Object.keys(salaryData));
+  
+  return `
+  <div class="fade-in">
+    ${Header(title)}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap;">
+        <div style="display:flex;gap:1rem;align-items:center;">
+          <div class="segmented-control">
+            <button class="control-btn ${viewMode==='monthly'?'active':''}" onclick="window.setViewMode('monthly')">Theo tháng</button>
+            <button class="control-btn ${viewMode==='summary'?'active':''}" onclick="window.setViewMode('summary')">Tổng hợp</button>
+          </div>
+          ${viewMode === 'monthly' ? `
+            <select class="select-input" id="nq20-month-selector">${months.length?months.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
+            <button class="btn btn-secondary" onclick="window.initializeNQ20FromSalary()" style="font-size:0.85rem;" title="Lọc toàn bộ Bác sĩ từ bảng lương tháng hiện tại">Khởi tạo từ Bảng lương</button>
+            <button class="btn btn-secondary" onclick="window.copyNQ20FromPrevious()" style="font-size:0.85rem;">Sao chép tháng trước</button>
+            <button class="btn btn-secondary" id="delete-nq20-btn" style="color:#ef4444;font-size:0.85rem;">🗑️ Xóa</button>
+          ` : `
+            <select class="select-input" id="nq20-period-selector">
+              <option value="all" ${summaryPeriod==='all'?'selected':''}>Cả năm 2026</option>
+              <option value="q1" ${summaryPeriod==='q1'?'selected':''}>Quý I</option>
+              <option value="q2" ${summaryPeriod==='q2'?'selected':''}>Quý II</option>
+              <option value="q3" ${summaryPeriod==='q3'?'selected':''}>Quý III</option>
+              <option value="q4" ${summaryPeriod==='q4'?'selected':''}>Quý IV</option>
+            </select>
+          `}
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <button class="btn btn-secondary" onclick="window.showReportPreview('nq20')" title="Xem trước & Xuất báo cáo"><i data-lucide="printer" size="16"></i> Xem trước & Xuất</button>
+          ${viewMode === 'monthly' ? `<button class="btn btn-secondary" onclick="window.addNewNQ20Doctor()"><i data-lucide="plus" size="16"></i> Thêm cá nhân</button>` : ''}
+          <button class="btn btn-primary" id="import-nq20-btn">Import NQ20</button>
+        </div>
+      </div>
+      <div class="table-container" style="max-height:650px;">
+        <table class="salary-detail-table">
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Họ tên</th>
+              <th>Khoa/Phòng</th>
+              ${viewMode === 'monthly' ? `
+                <th>Đối tượng đãi ngộ (Nghị quyết 20)</th>
+                <th>Ghi chú (Số tháng/Chi tiết)</th>
+                <th>Số tiền đãi ngộ</th>
+                <th>Thao tác</th>
+              ` : `
+                <th>Số tháng nhận</th>
+                <th>Tổng số tiền đãi ngộ</th>
+              `}
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.length > 0 
+              ? filtered.map((e, idx) => {
+                  if (viewMode === 'monthly') {
+                    const isSelected = (val) => {
+                      if (val === 'TS_CKII' && e.amount === 2000000) return 'selected';
+                      if (val === 'THS_CKI_BSNT' && e.amount === 1500000) return 'selected';
+                      if (val === 'BS_TYT_DBKK' && e.amount === 1200000) return 'selected';
+                      if (val === 'BS_TYT' && e.amount === 1000000) return 'selected';
+                      if (e.categoryKey === val) return 'selected';
+                      return '';
+                    };
+                    
+                    const hasStandardAmount = [2000000, 1500000, 1200000, 1000000].includes(e.amount);
+                    const isCustomSelected = !hasStandardAmount && !e.categoryKey || e.categoryKey === 'CUSTOM';
+
+                    return `
+                    <tr>
+                      <td>${idx+1}</td>
+                      <td style="font-weight:600;">${e.name}</td>
+                      <td>${e.dept||''}</td>
+                      <td>
+                        <select class="select-input" onchange="window.updateNQ20Category('${e.name}', this.value)" style="width:100%;font-size:0.85rem;padding:4px 8px;">
+                          <option value="TS_CKII" ${isSelected('TS_CKII')}>Tiến sĩ / Bác sĩ CKII (2,0M)</option>
+                          <option value="THS_CKI_BSNT" ${isSelected('THS_CKI_BSNT')}>Thạc sĩ / BSCKI / BS Nội trú (1,5M)</option>
+                          <option value="BS_TYT_DBKK" ${isSelected('BS_TYT_DBKK')}>Bác sĩ TYT xã ĐBKK (1,2M)</option>
+                          <option value="BS_TYT" ${isSelected('BS_TYT')}>Bác sĩ Trạm y tế / PKĐKKV (1,0M)</option>
+                          <option value="CUSTOM" ${isCustomSelected?'selected':''}>Khác (Tùy chỉnh số tiền)</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input type="text" class="select-input" value="${e.content||e.notes||''}" onchange="window.updateNQ20Notes('${e.name}', this.value)" style="width:100%;font-size:0.85rem;padding:2px 6px;" placeholder="Ví dụ: Tháng 15/60">
+                      </td>
+                      <td>
+                        <input type="number" class="select-input" value="${e.amount}" onchange="window.updateNQ20Amount('${e.name}', this.value)" style="width:120px;text-align:right;font-size:0.85rem;padding:2px 6px;" ${!isCustomSelected && hasStandardAmount ? 'disabled' : ''}>
+                      </td>
+                      <td style="text-align:center;">
+                        <button class="icon-btn" onclick="window.removeNQ20Employee('${e.name}')" style="color:#ef4444;display:inline-flex;padding:4px;"><i data-lucide="trash-2" size="16"></i></button>
+                      </td>
+                    </tr>`;
+                  } else {
+                    return `
+                    <tr>
+                      <td>${idx+1}</td>
+                      <td style="font-weight:600;">${e.name}</td>
+                      <td>${e.dept||''}</td>
+                      <td style="text-align:center;">${e.months_count}</td>
+                      <td class="highlight-total">${fmt(e.amount)}</td>
+                    </tr>`;
+                  }
+                }).join('')
+              : `<tr><td colspan="${viewMode === 'monthly' ? 7 : 5}" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu đãi ngộ NQ20 tháng ${selectedMonth}.<br><br><div style="display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary" onclick="window.initializeNQ20FromSalary()">Khởi tạo từ Bảng lương</button><button class="btn btn-secondary" onclick="document.getElementById('import-nq20-btn').click()">Import ngay</button></div></td></tr>`
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+};
+
 function processOvertimeCSV(text) {
   const rows = Papa.parse(text, { skipEmptyLines: true }).data;
   const result = [];
@@ -559,21 +717,431 @@ function processOvertimeCSV(text) {
   return result;
 }
 
+function processNQ20CSV(text) {
+  const rows = Papa.parse(text, { skipEmptyLines: true }).data;
+  if (rows.length < 2) return [];
+
+  let hIdx = rows.findIndex(r => r.some(c => c && c.toString().toLowerCase().includes('họ và tên')));
+  if (hIdx === -1) hIdx = 0;
+
+  const combinedHeaders = Array(rows[hIdx].length).fill('');
+  for (let i = 0; i <= hIdx; i++) {
+    rows[i].forEach((cell, cellIdx) => {
+      if (cell) combinedHeaders[cellIdx] += ' ' + cell.toString().toLowerCase();
+    });
+  }
+
+  let nameIdx = combinedHeaders.findIndex(h => h.includes('họ và tên'));
+  let amtIdx = combinedHeaders.findIndex(h => h.includes('tiền') || h.includes('đối tượng') || h.includes('đãi ngộ') || h.includes('tổng số') || h.includes('thực lĩnh') || h.includes('hỗ trợ'));
+  if (amtIdx === -1) amtIdx = 8;
+  if (nameIdx === -1) nameIdx = 1;
+
+  const deptIdx = combinedHeaders.findIndex(h => h.includes('khoa') || h.includes('phòng') || h.includes('đơn vị') || h.includes('bộ phận'));
+  const categoryIdx = combinedHeaders.findIndex(h => h.includes('đối tượng') || h.includes('phân loại') || h.includes('trình độ') || h.includes('nghị quyết'));
+
+  const result = [];
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const name = row[nameIdx]?.toString().trim();
+    if (!name || name === '' || name.toLowerCase().includes('tổng cộng') || /^[IVXLCDM]+\./.test(name)) continue;
+    if (name.split(' ').length < 2 && isNaN(name) === false) continue;
+
+    result.push({
+      name: name,
+      dept: deptIdx !== -1 ? row[deptIdx]?.toString().trim() : '',
+      category: categoryIdx !== -1 ? row[categoryIdx]?.toString().trim() : 'Đãi ngộ NQ20',
+      amount: parseVNNumber(row[amtIdx])
+    });
+  }
+  return result;
+}
+
 const Dashboard = () => {
   const sd = (salaryData[selectedMonth] || []).filter(isRealEmployee);
   const od = (overtimeData[selectedMonth] || []);
   const bd = (bonusData[selectedMonth] || []);
+  const nd = (nq20Data[selectedMonth] || []);
   const totalSalary = sd.reduce((s, e) => s + e.total, 0);
   const totalOT = od.reduce((s, e) => s + (e.amount || 0), 0);
   const totalBonus = bd.reduce((s, e) => s + (e.amount || 0), 0);
-  const totalNet = totalSalary + totalOT + totalBonus;
+  const totalNQ20 = nd.reduce((s, e) => s + (e.amount || 0), 0);
+  const totalNet = totalSalary + totalOT + totalBonus + totalNQ20;
   return `
   <div class="fade-in">
     ${Header('Tổng quan ' + selectedMonth)}
     <div class="stats-grid">
-      <div class="card stat-card"><span class="stat-label">Tổng quỹ lương</span><span class="stat-value">${fmt(totalNet)}</span></div>
+      <div class="card stat-card"><span class="stat-label">Tổng quỹ lương thực nhận</span><span class="stat-value">${fmt(totalNet)}</span></div>
       <div class="card stat-card"><span class="stat-label">Tổng Trực & Ngoài giờ</span><span class="stat-value">${fmt(totalOT)}</span></div>
       <div class="card stat-card"><span class="stat-label">Tổng Khen thưởng</span><span class="stat-value">${fmt(totalBonus)}</span></div>
+      <div class="card stat-card"><span class="stat-label">Tổng Đãi ngộ NQ20</span><span class="stat-value">${fmt(totalNQ20)}</span></div>
+    </div>
+  </div>`;
+};
+
+const BudgetSalaryTab = () => {
+  const baseMonth = budgetBaseMonth || selectedMonth;
+  const emps = (salaryData[baseMonth] || []).filter(isRealEmployee);
+  
+  let totals = { base:0, cv:0, kv:0, vk:0, tn:0, dh:0, ud56:0, sumPc:0, bhxh:0, bhyt:0, bhtn:0, kpcd:0, sumIns:0, totalCoef:0, thanhTien:0, chiThuong:0, tongCong:0 };
+  
+  const tbody = emps.map((e, idx) => {
+    const base = parseCoef(e.coefficients?.base);
+    const cv = parseCoef(e.coefficients?.position);
+    const kv = parseCoef(e.coefficients?.area);
+    const vk = parseCoef(e.coefficients?.vkhung);
+    const tn = parseCoef(e.coefficients?.responsibility);
+    const dh = parseCoef(e.coefficients?.toxic);
+    const ud56_ratio = parseCoef(e.coefficients?.incentive);
+    
+    // Ưu đãi (NĐ56) = (hệ số lương ngạch bậc chức vụ + vượt khung) x hệ số ưu đãi trên bảng lương
+    const ud56 = (base + cv + vk) * ud56_ratio;
+    
+    const ud76 = 0; const th76 = 0; const ld = 0;
+    
+    const sumPc = cv + kv + vk + tn + dh + ud56 + ud76 + th76 + ld;
+    const baseForIns = base + cv + vk;
+    const bhxh = baseForIns * 0.175;
+    const bhyt = baseForIns * 0.03;
+    const bhtn = baseForIns * 0.01;
+    const kpcd = baseForIns * 0.02;
+    const sumIns = bhxh + bhyt + bhtn + kpcd;
+    const totalCoef = base + sumPc + sumIns;
+    
+    const thanhTien = Math.round(totalCoef * budgetBaseSalary);
+    const chiThuong = Math.round(base * budgetBaseSalary * 0.1);
+    const tongCong = thanhTien + chiThuong;
+
+    totals.base += base; totals.cv += cv; totals.kv += kv; totals.vk += vk; totals.tn += tn; totals.dh += dh; totals.ud56 += ud56;
+    totals.sumPc += sumPc; totals.bhxh += bhxh; totals.bhyt += bhyt; totals.bhtn += bhtn; totals.kpcd += kpcd; totals.sumIns += sumIns;
+    totals.totalCoef += totalCoef; totals.thanhTien += thanhTien; totals.chiThuong += chiThuong; totals.tongCong += tongCong;
+
+    const isContract = budgetContractEmployees.has(e.name);
+
+    return `<tr>
+      <td class="sticky-col col-tt">${idx+1}</td>
+      <td class="sticky-col col-name" style="font-weight:600;">${e.name}</td>
+      <td class="sticky-col col-dept">${e.department||''}</td>
+      <td class="text-center"><input type="checkbox" onchange="window.toggleBudgetContract('${e.name}')" ${isContract?'checked':''}></td>
+      <td class="text-center">${base.toFixed(2).replace('.',',')}</td>
+      <td class="text-center">${cv?cv.toFixed(2).replace('.',','):''}</td><td class="text-center">${kv?kv.toFixed(2).replace('.',','):''}</td><td class="text-center">${vk?vk.toFixed(2).replace('.',','):''}</td>
+      <td class="text-center">${tn?tn.toFixed(2).replace('.',','):''}</td><td class="text-center">${dh?dh.toFixed(2).replace('.',','):''}</td><td class="text-center">${ud56?ud56.toFixed(2).replace('.',','):''}</td>
+      <td class="text-center"></td><td class="text-center"></td><td class="text-center"></td>
+      <td class="text-center" style="font-weight:600;background:#f8fafc;">${sumPc?sumPc.toFixed(2).replace('.',','):''}</td>
+      <td class="text-center">${bhxh.toFixed(3).replace('.',',')}</td><td class="text-center">${bhyt.toFixed(3).replace('.',',')}</td><td class="text-center">${bhtn.toFixed(3).replace('.',',')}</td><td class="text-center">${kpcd.toFixed(3).replace('.',',')}</td>
+      <td class="text-center" style="font-weight:600;color:var(--danger);">${sumIns.toFixed(3).replace('.',',')}</td>
+      <td class="text-center" style="font-weight:600;color:var(--primary);">${totalCoef.toFixed(3).replace('.',',')}</td>
+      <td class="highlight-total">${fmt(thanhTien)}</td>
+      <td style="background:rgba(234, 179, 8, 0.05); text-align:right;">${fmt(chiThuong)}</td>
+      <td class="highlight-col">${fmt(tongCong)}</td>
+    </tr>`;
+  }).join('');
+
+  const months = sortMonthsDesc(Object.keys(salaryData));
+  const monthOptions = months.map(m => `<option value="${m}" ${m===baseMonth?'selected':''}>Tháng ${m}</option>`).join('');
+
+  return `
+    <div style="margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <label style="font-weight:600;">Lấy dữ liệu từ:</label>
+        <select class="select-input" onchange="window.setBudgetBaseMonth(this.value)">${monthOptions}</select>
+      </div>
+      <button class="btn btn-secondary" onclick="window.exportBudgetToExcel('salary')"><i data-lucide="file-spreadsheet" size="16"></i> Xuất Excel</button>
+    </div>
+    <div class="table-container" style="max-height:600px; overflow-x:auto;">
+      <table class="salary-detail-table" style="min-width: 1800px; font-size:0.8rem;">
+        <thead>
+          <tr>
+            <th rowspan="2" class="sticky-col col-tt">STT</th>
+            <th rowspan="2" class="sticky-col col-name">Họ và tên</th>
+            <th rowspan="2" class="sticky-col col-dept">Bộ phận</th>
+            <th rowspan="2">HĐ NĐ111</th>
+            <th rowspan="2">Hệ số lương ngạch bậc</th>
+            <th colspan="9" style="text-align:center; background:rgba(14, 165, 233, 0.1);">Các khoản phụ cấp</th>
+            <th rowspan="2">Tổng hệ số các khoản phụ cấp</th>
+            <th colspan="4" style="text-align:center; background:rgba(239, 68, 68, 0.1);">Các khoản đóng góp</th>
+            <th rowspan="2">Tổng các khoản đóng góp</th>
+            <th rowspan="2">Cộng hệ số</th>
+            <th rowspan="2" class="highlight-total">Thành tiền</th>
+            <th rowspan="2" style="background:rgba(234, 179, 8, 0.1);">10% chi thưởng</th>
+            <th rowspan="2" class="highlight-col">Tổng cộng</th>
+          </tr>
+          <tr>
+            <th>Chức vụ</th><th>Khu vực</th><th>Vượt khung</th><th>Trách nhiệm</th><th>Độc hại</th><th>Ưu đãi (NĐ56)</th><th>Ưu đãi 70%</th><th>Thu hút</th><th>Lưu động</th>
+            <th>BHXH 17.5%</th><th>BHYT 3%</th><th>BHTN 1%</th><th>KPCĐ 2%</th>
+          </tr>
+        </thead>
+        <tbody>${emps.length ? tbody : '<tr><td colspan="24" style="text-align:center;padding:2rem;">Không có dữ liệu.</td></tr>'}</tbody>
+        ${emps.length ? `<tfoot>
+          <tr style="font-weight:700;background:var(--card-bg);border-top:2px solid var(--accent);">
+            <td colspan="4" class="sticky-col" style="text-align:center;">Tổng cộng</td>
+            <td class="text-center">${totals.base.toFixed(2).replace('.',',')}</td>
+            <td class="text-center">${totals.cv.toFixed(2).replace('.',',')}</td><td class="text-center">${totals.kv.toFixed(2).replace('.',',')}</td><td class="text-center">${totals.vk.toFixed(2).replace('.',',')}</td>
+            <td class="text-center">${totals.tn.toFixed(2).replace('.',',')}</td><td class="text-center">${totals.dh.toFixed(2).replace('.',',')}</td><td class="text-center">${totals.ud56.toFixed(2).replace('.',',')}</td>
+            <td></td><td></td><td></td>
+            <td class="text-center">${totals.sumPc.toFixed(2).replace('.',',')}</td>
+            <td class="text-center">${totals.bhxh.toFixed(2).replace('.',',')}</td><td class="text-center">${totals.bhyt.toFixed(2).replace('.',',')}</td><td class="text-center">${totals.bhtn.toFixed(2).replace('.',',')}</td><td class="text-center">${totals.kpcd.toFixed(2).replace('.',',')}</td>
+            <td class="text-center">${totals.sumIns.toFixed(2).replace('.',',')}</td><td class="text-center">${totals.totalCoef.toFixed(2).replace('.',',')}</td>
+            <td class="highlight-total">${fmt(totals.thanhTien)}</td><td style="text-align:right;">${fmt(totals.chiThuong)}</td><td class="highlight-col">${fmt(totals.tongCong)}</td>
+          </tr>
+        </tfoot>` : ''}
+      </table>
+    </div>
+  `;
+};
+
+const BudgetCoefficientsTab = () => {
+  const baseMonth = budgetBaseMonth || selectedMonth;
+  const emps = (salaryData[baseMonth] || []).filter(isRealEmployee);
+  
+  let totalBase = 0, cv = 0, kv = 0, vk = 0, tn = 0, dh = 0, ud56 = 0, sumIns = 0;
+  let countTotal = emps.length, countContract = 0, countOfficial = 0;
+
+  emps.forEach(e => {
+    const isContract = budgetContractEmployees.has(e.name);
+    if (isContract) countContract++; else countOfficial++;
+    
+    const _base = parseCoef(e.coefficients?.base);
+    const _cv = parseCoef(e.coefficients?.position);
+    const _kv = parseCoef(e.coefficients?.area);
+    const _vk = parseCoef(e.coefficients?.vkhung);
+    const _tn = parseCoef(e.coefficients?.responsibility);
+    const _dh = parseCoef(e.coefficients?.toxic);
+    const _ud56_ratio = parseCoef(e.coefficients?.incentive);
+    const _ud56 = (_base + _cv + _vk) * _ud56_ratio;
+    
+    const _sumIns = (_base + _cv + _vk) * 0.235;
+
+    totalBase += _base; cv += _cv; kv += _kv; vk += _vk; tn += _tn; dh += _dh; ud56 += _ud56; sumIns += _sumIns;
+  });
+
+  const sumPc = cv + kv + vk + tn + dh + ud56;
+  const totalHs = totalBase + sumPc + sumIns;
+
+  return `
+    <div style="padding: 1rem 0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h3 style="color:var(--primary); margin:0;">Tổng hợp hệ số theo bảng lương đến tháng ${baseMonth}</h3>
+        <button class="btn btn-secondary" onclick="window.print()"><i data-lucide="printer" size="16"></i> In Biểu</button>
+      </div>
+      <div class="table-container" style="overflow-x:auto;">
+        <table class="salary-detail-table" style="min-width: 1400px; font-size:0.85rem; text-align:center;">
+          <thead>
+            <tr>
+              <th rowspan="3" style="width:50px;">STT</th>
+              <th rowspan="3" style="width:250px;">Nội dung</th>
+              <th rowspan="3">Giường bệnh</th>
+              <th rowspan="3">Biên chế giao</th>
+              <th colspan="3" style="background:rgba(14, 165, 233, 0.1);">Tổng số đối tượng có mặt</th>
+              <th colspan="9" style="background:rgba(239, 68, 68, 0.1);">Tổng hệ số và các khoản đóng góp</th>
+            </tr>
+            <tr>
+              <th rowspan="2">Tổng số</th>
+              <th colspan="2">Trong đó</th>
+              <th rowspan="2">Tổng các H/s</th>
+              <th rowspan="2">HS Lương chính</th>
+              <th colspan="6">Tổng phụ cấp</th>
+              <th rowspan="2">Các khoản đóng góp</th>
+            </tr>
+            <tr>
+              <th>NĐ 111</th><th>Biên chế</th>
+              <th>Chức vụ</th><th>KV</th><th>V.khung</th><th>ƯĐ NĐ56</th><th>TN</th><th>Độc hại</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td style="text-align:left;font-weight:600;">Trung tâm Y tế Than Uyên</td>
+              <td><input type="number" class="select-input" style="width:80px;text-align:center;padding:4px;" placeholder="---" onchange="window.updateBudgetInput('giuong_benh', this.value)" value="${budgetManualInputs['giuong_benh']||''}"></td>
+              <td><input type="number" class="select-input" style="width:80px;text-align:center;padding:4px;" placeholder="---" onchange="window.updateBudgetInput('bien_che_giao', this.value)" value="${budgetManualInputs['bien_che_giao']||''}"></td>
+              <td style="font-weight:700;">${countTotal}</td>
+              <td style="color:var(--danger); font-weight:600;">${countContract}</td>
+              <td style="color:var(--primary); font-weight:600;">${countOfficial}</td>
+              <td style="font-weight:700;color:var(--primary);">${totalHs.toFixed(3).replace('.',',')}</td>
+              <td>${totalBase.toFixed(2).replace('.',',')}</td>
+              <td>${cv.toFixed(2).replace('.',',')}</td>
+              <td>${kv.toFixed(2).replace('.',',')}</td>
+              <td>${vk.toFixed(2).replace('.',',')}</td>
+              <td>${ud56.toFixed(2).replace('.',',')}</td>
+              <td>${tn.toFixed(2).replace('.',',')}</td>
+              <td>${dh.toFixed(2).replace('.',',')}</td>
+              <td>${sumIns.toFixed(3).replace('.',',')}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+};
+
+const BudgetTemplateTab = () => {
+  const baseMonth = budgetBaseMonth || selectedMonth;
+  const emps = (salaryData[baseMonth] || []).filter(isRealEmployee);
+  
+  let totalBase = 0, cv = 0, kv = 0, vk = 0, sumIns = 0;
+  let countTotal = emps.length, countContract = 0, countOfficial = 0;
+
+  emps.forEach(e => {
+    const isContract = budgetContractEmployees.has(e.name);
+    if (isContract) countContract++; else countOfficial++;
+    
+    const _base = parseCoef(e.coefficients?.base);
+    const _cv = parseCoef(e.coefficients?.position);
+    const _kv = parseCoef(e.coefficients?.area);
+    const _vk = parseCoef(e.coefficients?.vkhung);
+    const _sumIns = (_base + _cv + _vk) * 0.235;
+    totalBase += _base; cv += _cv; kv += _kv; vk += _vk; sumIns += _sumIns;
+  });
+  
+  let salaryCost = 0, bonusCost = 0;
+  emps.forEach(e => {
+    const base = parseCoef(e.coefficients?.base);
+    const _cv = parseCoef(e.coefficients?.position);
+    const _vk = parseCoef(e.coefficients?.vkhung);
+    const _ud56_ratio = parseCoef(e.coefficients?.incentive);
+    const _ud56 = (base + _cv + _vk) * _ud56_ratio;
+    
+    const sumPc = _cv + parseCoef(e.coefficients?.area) + _vk + parseCoef(e.coefficients?.responsibility) + parseCoef(e.coefficients?.toxic) + _ud56;
+    const _sumIns = (base + _cv + _vk) * 0.235;
+    salaryCost += Math.round((base + sumPc + _sumIns) * budgetBaseSalary * 12);
+    bonusCost += Math.round((base * budgetBaseSalary * 0.1) * 12);
+  });
+  
+  const getIn = (key) => budgetManualInputs[key] || '';
+  
+  const renderRow = (stt, title, id, isHeader = false, calculatedSuggest = null) => {
+    if (isHeader) {
+      return `<tr style="background:rgba(14, 165, 233, 0.1); font-weight:700;">
+        <td style="text-align:center;">${stt}</td><td>${title}</td>
+        <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+      </tr>`;
+    }
+    
+    const inpt = (k) => `<input type="${k==='ghi_chu'?'text':'number'}" class="select-input" style="width:100%;text-align:${k==='ghi_chu'?'left':'right'};border:none;border-radius:0;background:transparent;padding:4px;" placeholder="---" onchange="window.updateBudgetInput('${id}_${k}', this.value)" value="${getIn(`${id}_${k}`)}">`;
+    
+    const suggestHtml = calculatedSuggest !== null 
+      ? `<td style="text-align:right;font-weight:600;color:var(--primary);vertical-align:middle;padding:4px;">${fmt(calculatedSuggest)}</td>`
+      : `<td style="padding:0;">${inpt('denghi')}</td>`;
+
+    return `<tr>
+      <td style="text-align:center;font-weight:600;">${stt}</td>
+      <td style="${stt?'font-weight:600;':''} ${stt==='+'||stt==='-'?'padding-left:1.5rem;':''}">${title}</td>
+      <td style="padding:0;">${inpt('giao')}</td>
+      <td style="padding:0;">${inpt('th_6t')}</td>
+      <td style="padding:0;">${inpt('uoc')}</td>
+      ${suggestHtml}
+      <td style="padding:0;">${inpt('thamdinh')}</td>
+      <td style="padding:0;">${inpt('chenhlech')}</td>
+      <td style="padding:0;">${inpt('ghi_chu')}</td>
+    </tr>`;
+  };
+
+  return `
+    <div style="padding: 1rem 0;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1rem; align-items:center;">
+        <div>
+          <h2 style="margin:0; text-align:center; font-weight:700;">ĐÁNH GIÁ TÌNH HÌNH THỰC HIỆN NĂM 2025 VÀ DỰ TOÁN 2026</h2>
+          <h4 style="margin:0.5rem 0 0 0; text-align:center; font-weight:600;">Đơn vị: Trung tâm Y tế Than Uyên</h4>
+        </div>
+        <button class="btn btn-secondary" onclick="window.print()"><i data-lucide="printer" size="16"></i> In Biểu</button>
+      </div>
+      <div style="text-align:right; font-style:italic; font-weight:600; margin-bottom:0.5rem;">ĐVT: VNĐ (Hoặc Triệu đồng tùy nhập)</div>
+      <div class="table-container" style="overflow-x:auto;">
+        <table class="salary-detail-table" style="font-size:0.8rem; min-width: 1400px; border-collapse: collapse;">
+          <thead>
+            <tr>
+              <th rowspan="2" style="width:40px;text-align:center;">STT</th>
+              <th rowspan="2" style="width:300px;text-align:center;">Nội dung</th>
+              <th colspan="3" style="text-align:center;">Thực hiện năm 2025</th>
+              <th colspan="3" style="text-align:center;">Dự toán năm 2026</th>
+              <th rowspan="2" style="width:150px;text-align:center;">Ghi chú: (ghi rõ các vb làm căn cứ pháp lý xd)</th>
+            </tr>
+            <tr>
+              <th style="width:100px;text-align:center;">Số giao</th>
+              <th style="width:100px;text-align:center;">Số thực hiện 6 tháng</th>
+              <th style="width:100px;text-align:center;">Ước thực hiện năm 2025</th>
+              <th style="width:100px;text-align:center;">Số đơn vị đề nghị</th>
+              <th style="width:100px;text-align:center;">Số chuyên môn thẩm định</th>
+              <th style="width:100px;text-align:center;">Chênh lệch</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${renderRow('I', 'Thu ngân sách', 'thu_ns', true)}
+            ${renderRow('1', 'Tổng thu', 'tong_thu')}
+            ${renderRow('-', 'Thu phí, lệ phí', 'thu_phi')}
+            ${renderRow('-', 'Thu viện phí trực tiếp', 'thu_vp')}
+            ${renderRow('-', 'Thu KCB bảo hiểm y tế', 'thu_bhyt')}
+            ${renderRow('-', 'Thu dịch vụ', 'thu_dv')}
+            ${renderRow('-', 'Thu khác', 'thu_khac')}
+            
+            ${renderRow('2', 'Chi từ nguồn thu sự nghiệp', 'chi_ns', true)}
+            ${renderRow('', 'Trong đó', 'trong_do')}
+            ${renderRow('-', 'Nộp ngân sách nhà nước', 'nop_nsnn')}
+            ${renderRow('-', 'Lương, phụ cấp và các khoản đóng góp theo lương', 'luong_pc', false, salaryCost)}
+            ${renderRow('-', 'Hợp đồng theo NĐ111', 'hd_111')}
+            ${renderRow('-', 'Hợp đồng chuyên môn theo NĐ111', 'hd_cm_111')}
+            ${renderRow('-', 'Chi phí trực tiếp (chi tiết theo nội dung)', 'chi_truc_tiep')}
+            ${renderRow('+', 'Phụ cấp trực', 'pc_truc')}
+            ${renderRow('+', 'TT tiền thủ thuật - phẫu thuật', 'tt_pttt')}
+            ${renderRow('+', 'Tiền ăn', 'tien_an')}
+            ${renderRow('+', 'Thanh toán tiền điện', 'tien_dien')}
+            ${renderRow('+', 'Thanh toán tiền nước', 'tien_nuoc')}
+            ${renderRow('+', 'Thanh toán tiền nhiên liệu', 'tien_nhien_lieu')}
+            ${renderRow('+', 'Văn phòng phẩm', 'vpp')}
+            ${renderRow('+', 'Công cụ, dụng cụ VP', 'cc_dc_vp')}
+            ${renderRow('+', 'Vật tư VPP khác', 'vpp_khac')}
+            ${renderRow('+', 'Chi thuê mướng khác (Vệ sinh công nghiệp)', 'thue_muong')}
+            ${renderRow('+', 'Sửa chữa ô tô', 'sc_oto')}
+            ${renderRow('+', 'Sửa chữa trang TBKT chuyên dụng', 'sc_tbkt')}
+            
+            ${renderRow('II', 'Chi ngân sách Nhà nước', 'chi_nsnn', true)}
+            ${renderRow('A', 'Chỉ tiêu', 'chi_tieu', true)}
+            ${renderRow('1', 'Tổng biên chế / Hợp đồng (người)', 'tong_bc', false, countTotal)}
+            ${renderRow('2', 'Hệ số bình quân', 'hs_bq', false, countTotal ? ((totalBase+cv+kv+vk+sumIns)/countTotal).toFixed(2).replace('.',',') : 0)}
+            
+            ${renderRow('B', 'Kinh phí', 'kinh_phi', true)}
+            ${renderRow('1', 'Kinh phí nhiệm vụ thường xuyên', 'kp_tx')}
+            ${renderRow('-', 'Tiền lương (Biên chế + HĐ) x 12 tháng', 'tien_luong_tx', false, salaryCost)}
+            ${renderRow('-', 'KP chi thưởng NĐ73 (10%)', 'tien_thuong_tx', false, bonusCost)}
+            ${renderRow('-', 'KP chi hoạt động thường xuyên', 'kp_hd_tx')}
+            
+            ${renderRow('2', 'Các nhiệm vụ chi ngoài định mức', 'kp_ngoai_dm')}
+            ${renderRow('-', 'Thuê phần mềm (EHIS, Bệnh án ĐT)', 'thue_pm')}
+            ${renderRow('-', 'Bảo hiểm cháy nổ / PCCC', 'bh_pccc')}
+            ${renderRow('-', 'Thuê vệ sinh công nghiệp / Xử lý rác', 've_sinh')}
+            ${renderRow('-', 'Sửa chữa / Mua sắm máy móc thiết bị', 'mua_sam')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+};
+
+const BudgetPlanningModule = () => {
+  const navHTML = `
+    <div class="segmented-control" style="margin-bottom: 0;">
+      <button class="control-btn ${budgetSubTab==='salary'?'active':''}" onclick="window.setBudgetTab('salary')">Bảng lương dự toán</button>
+      <button class="control-btn ${budgetSubTab==='coefficients'?'active':''}" onclick="window.setBudgetTab('coefficients')">Tổng hợp hệ số</button>
+      <button class="control-btn ${budgetSubTab==='template'?'active':''}" onclick="window.setBudgetTab('template')">Mẫu xây dựng dự toán</button>
+    </div>
+  `;
+
+  let content = '';
+  if (budgetSubTab === 'salary') content = BudgetSalaryTab();
+  else if (budgetSubTab === 'coefficients') content = BudgetCoefficientsTab();
+  else if (budgetSubTab === 'template') content = BudgetTemplateTab();
+
+  return `
+  <div class="fade-in">
+    ${Header('Dự toán năm ' + budgetYear)}
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+        ${navHTML}
+        <div style="display:flex; gap:1rem; align-items:center;">
+          <label style="font-size:0.85rem;font-weight:600;">Lương cơ sở:</label>
+          <input type="number" id="budget-base-salary" value="${budgetBaseSalary}" class="select-input" style="width:120px;" onchange="window.updateBudgetBaseSalary(event)">
+        </div>
+      </div>
+      ${content}
     </div>
   </div>`;
 };
@@ -589,6 +1157,8 @@ const render = () => {
       case 'pit': content = PITModule(); break;
       case 'overtime': content = OvertimeModule(); break;
       case 'bonus': content = BonusModule(); break;
+      case 'nq20': content = NQ20Module(); break;
+      case 'budget': content = BudgetPlanningModule(); break;
       default: content = Dashboard();
     }
     app.innerHTML = `${Sidebar()}<main class="main-content">${content}</main>
@@ -618,7 +1188,7 @@ const render = () => {
     lucide.createIcons();
     document.querySelectorAll('.nav-item[data-tab]').forEach(i => i.onclick = () => { currentTab = i.dataset.tab; render(); });
     const si = document.getElementById('search-input'); if(si){ si.value = searchFilter; si.oninput = (e) => { searchFilter = e.target.value; render(); } }
-    const ms = document.getElementById('month-selector') || document.getElementById('ot-month-selector') || document.getElementById('bn-month-selector');
+    const ms = document.getElementById('month-selector') || document.getElementById('ot-month-selector') || document.getElementById('bn-month-selector') || document.getElementById('nq20-month-selector');
     if(ms) ms.onchange = (e) => { selectedMonth = e.target.value; render(); }
     const pqs = document.getElementById('pit-quarter-selector'); if(pqs) pqs.onchange = (e) => { selectedPITQuarter = e.target.value; render(); }
     
@@ -653,6 +1223,12 @@ const render = () => {
           const parsed = processBonusCSV(text);
           if(!parsed.length) throw new Error('Dữ liệu không hợp lệ');
           bonusData[m] = parsed; 
+        } else if (type === 'nq20') {
+          const parsed = processNQ20CSV(text);
+          if(!parsed.length) throw new Error('Dữ liệu không hợp lệ');
+          nq20Data[m] = parsed;
+          localStorage.setItem('last_nq20_url', u);
+          localStorage.setItem('last_nq20_gid', g);
         } else {
           const parsed = processOvertimeCSV(text);
           if(!parsed.length) throw new Error('Dữ liệu không hợp lệ');
@@ -663,7 +1239,7 @@ const render = () => {
       } catch (e) { alert('Lỗi: ' + e.message); } finally { cfm.textContent = 'Bắt đầu Import'; cfm.disabled = false; }
     };
 
-    const otib = document.getElementById('import-ot-btn'), bnib = document.getElementById('import-bonus-btn');
+    const otib = document.getElementById('import-ot-btn'), bnib = document.getElementById('import-bonus-btn'), nq20ib = document.getElementById('import-nq20-btn');
     if(otib) otib.onclick = () => {
       document.getElementById('import-title').textContent = 'Import Ngoài giờ';
       document.getElementById('import-url').value = 'https://docs.google.com/spreadsheets/d/1d4VhrIM_lk8BeODjG2_PCAK85NXOVI6aLQO1XlUjyiU/edit';
@@ -682,11 +1258,18 @@ const render = () => {
       document.getElementById('import-gid').value = localStorage.getItem('last_bonus_gid') || '1464193880';
       cfm.setAttribute('data-type', 'bonus'); im.style.display = 'flex';
     };
+    if(nq20ib) nq20ib.onclick = () => {
+      document.getElementById('import-title').textContent = 'Import NQ20';
+      document.getElementById('import-url').value = localStorage.getItem('last_nq20_url') || 'https://docs.google.com/spreadsheets/d/1Imhhn8uEhS2_Wn_3TbQlohsrEUUai_EK6JVJfNUDboQ/edit';
+      document.getElementById('import-gid').value = localStorage.getItem('last_nq20_gid') || '';
+      cfm.setAttribute('data-type', 'nq20'); im.style.display = 'flex';
+    };
 
-    const sps = document.getElementById('summary-period-selector'), ops = document.getElementById('ot-period-selector'), bps = document.getElementById('bn-period-selector');
+    const sps = document.getElementById('summary-period-selector'), ops = document.getElementById('ot-period-selector'), bps = document.getElementById('bn-period-selector'), nps = document.getElementById('nq20-period-selector');
     if(sps) sps.onchange = (e) => { summaryPeriod = e.target.value; selectedPITQuarter = e.target.value.replace('q', ''); render(); };
     if(ops) ops.onchange = (e) => { summaryPeriod = e.target.value; selectedPITQuarter = e.target.value.replace('q', ''); render(); };
     if(bps) bps.onchange = (e) => { summaryPeriod = e.target.value; selectedPITQuarter = e.target.value.replace('q', ''); render(); };
+    if(nps) nps.onchange = (e) => { summaryPeriod = e.target.value; selectedPITQuarter = e.target.value.replace('q', ''); render(); };
 
     const cpm = document.getElementById('close-preview');
     if(cpm) cpm.onclick = () => document.getElementById('preview-modal').style.display = 'none';
@@ -701,6 +1284,7 @@ const render = () => {
       if (btn.id === 'delete-bonus-btn') { e.preventDefault(); window.deleteBonusMonth(); }
       else if (btn.id === 'delete-ot-btn') { e.preventDefault(); window.deleteOTMonth(); }
       else if (btn.id === 'delete-salary-btn') { e.preventDefault(); window.deleteMonth(); }
+      else if (btn.id === 'delete-nq20-btn') { e.preventDefault(); window.deleteNQ20Month(); }
     };
   } catch (err) {
     app.innerHTML = `<div style="padding:3rem;text-align:center;"><h2>Sự cố hiển thị</h2><button class="btn btn-primary" onclick="window.emergencyReset()">Khôi phục hệ thống</button><pre style="text-align:left;margin-top:2rem;">${err.stack}</pre></div>`;
@@ -710,6 +1294,206 @@ const render = () => {
 window.setViewMode = (mode) => { 
   viewMode = mode; 
   render(); 
+};
+
+window.initializeNQ20FromSalary = function() {
+  const emps = (salaryData[selectedMonth] || []).filter(isRealEmployee);
+  if (!emps.length) return alert('Không tìm thấy dữ liệu bảng lương tháng ' + selectedMonth + ' để khởi tạo!');
+  
+  if (confirm('Khởi tạo danh sách NQ20 bằng cách lọc các Bác sĩ từ bảng lương tháng ' + selectedMonth + '?')) {
+    const doctors = emps.filter(e => {
+      const pos = (e.position || '').toLowerCase();
+      const dept = (e.department || e.dept || '').toLowerCase();
+      return pos.includes('bác sĩ') || pos.includes('bác sỹ') || pos.includes('bs') ||
+             dept.includes('khám bệnh') || dept.includes('lâm sàng') ||
+             pos.includes('đông y') || pos.includes('chuyên khoa');
+    });
+
+    const currentList = nq20Data[selectedMonth] || [];
+    const newList = [...currentList];
+
+    doctors.forEach(doc => {
+      if (!newList.some(n => n.name === doc.name)) {
+        let categoryKey = 'CUSTOM';
+        let amount = 0;
+        const pos = doc.position.toLowerCase();
+        if (pos.includes('ckii') || pos.includes('ck ii') || pos.includes('tiến sĩ') || pos.includes('ts')) {
+          categoryKey = 'TS_CKII';
+          amount = 2000000;
+        } else if (pos.includes('cki') || pos.includes('ck i') || pos.includes('thạc sĩ') || pos.includes('ths') || pos.includes('nội trú') || pos.includes('bsnt')) {
+          categoryKey = 'THS_CKI_BSNT';
+          amount = 1500000;
+        } else if (doc.department.toLowerCase().includes('trạm y tế') || doc.department.toLowerCase().includes('tyt')) {
+          categoryKey = 'BS_TYT';
+          amount = 1000000;
+        } else {
+          categoryKey = 'THS_CKI_BSNT';
+          amount = 1500000;
+        }
+
+        newList.push({
+          name: doc.name,
+          dept: doc.department || '',
+          categoryKey: categoryKey,
+          amount: amount,
+          content: ''
+        });
+      }
+    });
+
+    if (newList.length === 0) {
+      if (confirm('Không tự động nhận diện được bác sĩ nào qua chức vụ. Thêm tất cả nhân viên để tự phân loại?')) {
+        emps.forEach(doc => {
+          newList.push({
+            name: doc.name,
+            dept: doc.department || '',
+            categoryKey: 'CUSTOM',
+            amount: 0,
+            content: ''
+          });
+        });
+      }
+    }
+
+    nq20Data[selectedMonth] = newList;
+    saveToLocal();
+    render();
+  }
+};
+
+window.copyNQ20FromPrevious = function() {
+  const months = sortMonthsDesc(Object.keys(nq20Data));
+  const prevMonth = months.find(m => m !== selectedMonth);
+  if (!prevMonth) return alert('Không tìm thấy dữ liệu NQ20 tháng trước!');
+  
+  if (confirm(`Sao chép danh sách đãi ngộ NQ20 từ tháng ${prevMonth} sang tháng ${selectedMonth}?`)) {
+    nq20Data[selectedMonth] = JSON.parse(JSON.stringify(nq20Data[prevMonth]));
+    saveToLocal();
+    render();
+    alert('Sao chép thành công!');
+  }
+};
+
+window.addNewNQ20Doctor = function() {
+  const name = prompt('Nhập họ và tên bác sĩ:');
+  if (!name || name.trim() === '') return;
+  const dept = prompt('Nhập khoa/phòng/bộ phận:');
+  
+  const currentList = nq20Data[selectedMonth] || [];
+  if (currentList.some(e => e.name.toLowerCase() === name.trim().toLowerCase())) {
+    return alert('Bác sĩ này đã có trong danh sách!');
+  }
+  
+  currentList.push({
+    name: name.trim(),
+    dept: (dept || '').trim(),
+    categoryKey: 'THS_CKI_BSNT',
+    amount: 1500000,
+    content: ''
+  });
+  
+  nq20Data[selectedMonth] = currentList;
+  saveToLocal();
+  render();
+};
+
+window.removeNQ20Employee = function(name) {
+  if (confirm(`Xóa bác sĩ ${name} khỏi danh sách NQ20 tháng ${selectedMonth}?`)) {
+    const currentList = nq20Data[selectedMonth] || [];
+    nq20Data[selectedMonth] = currentList.filter(e => e.name !== name);
+    saveToLocal();
+    render();
+  }
+};
+
+window.updateNQ20Category = function(name, categoryKey) {
+  const currentList = nq20Data[selectedMonth] || [];
+  const emp = currentList.find(e => e.name === name);
+  if (emp) {
+    emp.categoryKey = categoryKey;
+    if (categoryKey === 'TS_CKII') emp.amount = 2000000;
+    else if (categoryKey === 'THS_CKI_BSNT') emp.amount = 1500000;
+    else if (categoryKey === 'BS_TYT_DBKK') emp.amount = 1200000;
+    else if (categoryKey === 'BS_TYT') emp.amount = 1000000;
+    saveToLocal();
+    render();
+  }
+};
+
+window.updateNQ20Notes = function(name, val) {
+  const currentList = nq20Data[selectedMonth] || [];
+  const emp = currentList.find(e => e.name === name);
+  if (emp) {
+    emp.content = val;
+    emp.notes = val;
+    saveToLocal();
+  }
+};
+
+window.updateNQ20Amount = function(name, val) {
+  const currentList = nq20Data[selectedMonth] || [];
+  const emp = currentList.find(e => e.name === name);
+  if (emp) {
+    emp.amount = parseVNNumber(val);
+    saveToLocal();
+    render();
+  }
+};
+
+window.setBudgetTab = (tab) => { 
+  budgetSubTab = tab; 
+  render(); 
+};
+
+window.updateBudgetBaseSalary = (e) => { 
+  budgetBaseSalary = parseInt(e.target.value) || 2340000; 
+  render(); 
+};
+
+window.setBudgetBaseMonth = (m) => {
+  budgetBaseMonth = m;
+  render();
+};
+
+window.toggleBudgetContract = (name) => {
+  if (budgetContractEmployees.has(name)) budgetContractEmployees.delete(name);
+  else budgetContractEmployees.add(name);
+  render();
+};
+
+window.updateBudgetInput = (key, value) => {
+  if (key.includes('ghi_chu') || key.includes('text')) {
+    budgetManualInputs[key] = value;
+  } else {
+    budgetManualInputs[key] = parseFloat(value) || 0;
+  }
+};
+
+window.exportBudgetToExcel = function(type) {
+  if (type === 'salary') {
+    const table = document.querySelector('.salary-detail-table');
+    if (!table) return alert('Không tìm thấy bảng!');
+    
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(table, { raw: true });
+    
+    // Convert string numbers with comma to numbers or format as text so they don't break
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = {c:C, r:R};
+        const cellRef = XLSX.utils.encode_cell(cellAddress);
+        const cell = ws[cellRef];
+        if(!cell) continue;
+        
+        // Remove checkbox text
+        if(C === 3 && R > 1) { cell.v = budgetContractEmployees.has(ws[XLSX.utils.encode_cell({c:1, r:R})]?.v) ? 'x' : ''; }
+      }
+    }
+    
+    XLSX.utils.book_append_sheet(wb, ws, "DuToan_BangLuong");
+    XLSX.writeFile(wb, `Bang_Luong_Du_Toan_${budgetYear}.xlsx`);
+  }
 };
 
 window.exportSalaryToExcel = function() {
@@ -813,6 +1597,35 @@ window.exportBonusToExcel = function() {
   } catch (e) { alert('Lỗi: ' + e.message); }
 };
 
+window.exportNQ20ToExcel = function() {
+  try {
+    const isSummary = viewMode === 'summary';
+    const months = isSummary ? getMonthsInPeriod(summaryPeriod) : [selectedMonth];
+    const all = {};
+    months.forEach(m => {
+      const data = nq20Data[m] || [];
+      data.forEach(e => {
+        if (!all[e.name]) all[e.name] = { ...e, amount: 0, count: 0 };
+        all[e.name].amount += (e.amount || 0);
+        all[e.name].count++;
+      });
+    });
+    const data = Object.values(all).map((e, i) => ({
+      'STT': i + 1,
+      'Họ tên': e.name,
+      'Khoa/Phòng': e.dept,
+      'Nội dung': e.category || e.categoryKey || 'Đãi ngộ NQ20',
+      'Ghi chú': e.content || e.notes || '',
+      'Số tiền': e.amount
+    }));
+    if (!data.length) return alert('Không có dữ liệu!');
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "NQ20");
+    XLSX.writeFile(wb, `Dai_Ngo_NQ20_${isSummary?summaryPeriod:selectedMonth.replace('/','-')}.xlsx`);
+  } catch (e) { alert('Lỗi: ' + e.message); }
+};
+
 window.exportPITToExcel = function() {
   try {
     const qTitle = selectedPITQuarter === 'all' ? 'Cả năm' : `Quý ${selectedPITQuarter}`;
@@ -831,6 +1644,8 @@ window.exportPITToExcel = function() {
             name: e.name, dept: e.department, months: 0,
             rawAmounts: Array(19).fill(0),
             otAmount: 0,
+            bonusAmount: 0,
+            nq20Amount: 0,
             numDependents: (dependentOverrides[e.name] !== undefined) ? dependentOverrides[e.name] : (e.numDependents || 0)
           };
         }
@@ -841,11 +1656,19 @@ window.exportPITToExcel = function() {
         const otMonthData = overtimeData[month] || [];
         const otEntry = otMonthData.find(ot => ot.name === e.name);
         all[e.name].otAmount += otEntry ? otEntry.amount : 0;
+        
+        const bnMonthData = bonusData[month] || [];
+        const bnEntry = bnMonthData.find(bn => bn.name === e.name);
+        all[e.name].bonusAmount += bnEntry ? bnEntry.amount : 0;
+        
+        const nq20MonthData = nq20Data[month] || [];
+        const nq20Entry = nq20MonthData.find(n => n.name === e.name);
+        all[e.name].nq20Amount += nq20Entry ? nq20Entry.amount : 0;
       });
     });
 
     const data = Object.values(all).map(e => {
-      const gross_taxable = e.rawAmounts[8] + e.otAmount;
+      const gross_taxable = e.rawAmounts[8] + e.otAmount + e.bonusAmount + e.nq20Amount;
       const insurance = (e.rawAmounts[9] || 0) + (e.rawAmounts[10] || 0) + (e.rawAmounts[11] || 0);
       const gt_bt = e.months * GT_BAN_THAN;
       const gt_npt = e.months * (e.numDependents * GT_PHU_THUOC);
@@ -858,6 +1681,8 @@ window.exportPITToExcel = function() {
       };
       moneyHeaders.forEach((h, i) => row[h] = e.rawAmounts[i]);
       row['Ngoài giờ'] = e.otAmount;
+      row['Khen thưởng'] = e.bonusAmount;
+      row['Đãi ngộ NQ20'] = e.nq20Amount;
       row['THU NHẬP TÍNH THUẾ'] = taxable > 0 ? taxable : 0;
       return row;
     });
@@ -1048,6 +1873,54 @@ window.showReportPreview = function(type) {
         </tfoot>
       </table>
     `;
+  } else if (type === 'nq20') {
+    const isSummary = viewMode === 'summary';
+    const periodText = isSummary ? (summaryPeriod === 'all' ? 'CẢ NĂM 2026' : `QUÝ ${summaryPeriod[1]}/2026`) : `THÁNG ${selectedMonth}`;
+    title = `BẢNG TỔNG HỢP CHI TRẢ ĐÃI NGỘ NQ20`;
+    subTitle = periodText;
+    
+    const months = isSummary ? getMonthsInPeriod(summaryPeriod) : [selectedMonth];
+    const all = {};
+    months.forEach(m => {
+      const data = nq20Data[m] || [];
+      data.forEach(e => {
+        if (!all[e.name]) {
+          all[e.name] = { ...e, amount: 0, months_count: 0 };
+        }
+        all[e.name].amount += (e.amount || 0);
+        all[e.name].months_count++;
+      });
+    });
+    const emps = Object.values(all);
+
+    tableHTML = `
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>TT</th><th>Họ và tên</th><th>Bộ phận</th>
+            ${isSummary ? '<th>Số tháng</th>' : ''}
+            <th>Nội dung / Phân loại</th>
+            <th>Ghi chú</th>
+            <th>Số tiền hỗ trợ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${emps.map((e, idx) => `<tr>
+            <td>${idx+1}</td><td>${e.name}</td><td>${e.dept||''}</td>
+            ${isSummary ? `<td>${e.months_count}</td>` : ''}
+            <td>${e.category || e.categoryKey || 'Đãi ngộ NQ20'}</td>
+            <td>${e.content || e.notes || ''}</td>
+            <td style="font-weight:700;">${fmt(e.amount)}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="${isSummary?6:5}">TỔNG CỘNG</td>
+            <td style="font-weight:700;">${fmt(emps.reduce((s, e) => s + (e.amount || 0), 0))}</td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
   } else if (type === 'pit') {
     const qTitle = selectedPITQuarter === 'all' ? 'CẢ NĂM 2026' : `QUÝ ${selectedPITQuarter}/2026`;
     title = `BẢNG KÊ THU NHẬP TÍNH THUẾ THU NHẬP CÁ NHÂN`;
@@ -1055,19 +1928,27 @@ window.showReportPreview = function(type) {
     
     const moneyHeaders = ['Lương chính', 'PC vượt khung', 'PC Khu vực', 'PC Chức vụ', 'PC Trách nhiệm', 'PC ưu đãi ngành', 'PC Độc hại', 'PC cấp ủy', 'Tổng lương', 'BH 10.5%', 'BH CV', 'BH VK', 'Trừ ốm LC', 'Trừ ốm VK', 'Trừ ốm CV', 'Trừ ốm TN', 'Trừ ốm ƯĐ', 'Trừ ốm ĐH', 'Thực lĩnh'];
     
-    // Logic aggregation giống trong PITModule
     const all = {};
     Object.entries(salaryData).forEach(([month, data]) => {
       const m = parseInt(month.split('/')[0]);
       const q = m <= 3 ? '1' : (m <= 6 ? '2' : (m <= 9 ? '3' : '4'));
       if (selectedPITQuarter !== 'all' && selectedPITQuarter !== q) return;
       data.filter(isRealEmployee).forEach(e => {
-        if (!all[e.name]) all[e.name] = { name: e.name, dept: e.department, months: 0, rawAmounts: Array(19).fill(0), otAmount: 0 };
+        if (!all[e.name]) all[e.name] = { name: e.name, dept: e.department, months: 0, rawAmounts: Array(19).fill(0), otAmount: 0, bonusAmount: 0, nq20Amount: 0 };
         all[e.name].months++;
         if(e.rawAmounts) e.rawAmounts.forEach((v, i) => all[e.name].rawAmounts[i] += (v || 0));
+        
         const otMonthData = overtimeData[month] || [];
         const otEntry = otMonthData.find(ot => ot.name === e.name);
         all[e.name].otAmount += otEntry ? otEntry.amount : 0;
+        
+        const bnMonthData = bonusData[month] || [];
+        const bnEntry = bnMonthData.find(bn => bn.name === e.name);
+        all[e.name].bonusAmount += bnEntry ? bnEntry.amount : 0;
+
+        const nq20MonthData = nq20Data[month] || [];
+        const nq20Entry = nq20MonthData.find(n => n.name === e.name);
+        all[e.name].nq20Amount += nq20Entry ? nq20Entry.amount : 0;
       });
     });
     const emps = Object.values(all);
@@ -1079,12 +1960,14 @@ window.showReportPreview = function(type) {
             <th>Họ và tên</th><th>Bộ phận</th>
             ${moneyHeaders.slice(0, 9).map(h => `<th>${h}</th>`).join('')}
             <th>Ngoài giờ</th>
+            <th>Thưởng</th>
+            <th>NQ20</th>
             <th>Thu nhập tính thuế</th>
           </tr>
         </thead>
         <tbody>
           ${emps.map(e => {
-            const gross = e.rawAmounts[8] + e.otAmount;
+            const gross = e.rawAmounts[8] + e.otAmount + e.bonusAmount + e.nq20Amount;
             const ins = (e.rawAmounts[9]||0) + (e.rawAmounts[10]||0) + (e.rawAmounts[11]||0);
             const npt = (dependentOverrides[e.name] || 0);
             const taxable = gross - ins - (e.months * (GT_BAN_THAN + npt * GT_PHU_THUOC));
@@ -1092,6 +1975,8 @@ window.showReportPreview = function(type) {
               <td>${e.name}</td><td>${e.dept}</td>
               ${e.rawAmounts.slice(0, 9).map(v => `<td>${fmt(v)}</td>`).join('')}
               <td>${fmt(e.otAmount)}</td>
+              <td>${fmt(e.bonusAmount)}</td>
+              <td>${fmt(e.nq20Amount)}</td>
               <td>${fmt(taxable > 0 ? taxable : 0)}</td>
             </tr>`;
           }).join('')}
