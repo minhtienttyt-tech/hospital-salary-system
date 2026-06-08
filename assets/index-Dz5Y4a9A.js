@@ -236,15 +236,16 @@
             <tr>
               <th>TT</th>
               <th>Họ và tên</th>
-              <th>Đối tượng</th>
-              <th>Đơn vị công tác</th>
               ${d===`monthly`?`
+                <th>Đối tượng</th>
+                <th>Đơn vị công tác</th>
                 <th>Định mức</th>
                 <th>Số tháng hưởng</th>
                 <th>Thành tiền</th>
                 <th>Ghi chú</th>
               `:`
-                <th>Số tháng hưởng</th>
+                <th>Đơn vị công tác</th>
+                <th>Số tháng hưởng NQ20</th>
                 <th>Tổng số tiền đãi ngộ</th>
               `}
             </tr>
@@ -276,7 +277,7 @@
           ${e.length>0?`
           <tfoot>
             <tr style="font-weight:700; background:var(--card-bg); border-top:2px solid var(--accent);">
-              <td colspan="4" style="text-align:left; padding-left:10px;">Tổng cộng: ${e.length} Bác sỹ</td>
+              <td colspan="${d===`monthly`?4:3}" style="text-align:left; padding-left:10px;">Tổng cộng: ${e.length} Bác sỹ</td>
               ${d===`monthly`?`
                 <td></td>
                 <td></td>
@@ -293,7 +294,7 @@
         </table>
       </div>
     </div>
-  </div>`};function V(e){let t=Papa.parse(e,{skipEmptyLines:!0}).data,n=[];for(let e=1;e<t.length;e++){let r=t[e];if(r.some(e=>e&&(e.toString().toLowerCase().includes(`tổng cộng`)||e.toString().toLowerCase()===`cộng`)))break;if(!r[1])continue;let i=r[1].trim();n.push({name:i,amount:w(r[10]||r[20])})}return n}function H(e){let t=Papa.parse(e,{skipEmptyLines:!0}).data;if(t.length<2)return[];let n=t.findIndex(e=>e.some(e=>e&&(e.toString().toLowerCase().includes(`họ và tên`)||e.toString().toLowerCase().includes(`họ tên`)||e.toString().toLowerCase()===`họ tên`)));n===-1&&(n=0);let r=Array(t[n].length).fill(``);t[n].forEach((e,t)=>{e&&(r[t]=e.toString().toLowerCase().trim())});let i=r.findIndex(e=>e.includes(`họ tên`)||e.includes(`họ và tên`)||e.includes(`tên nhân viên`)||e.includes(`người hưởng`));i===-1&&(i=1);let a=r.findIndex(e=>e.includes(`số tiền`)||e.includes(`tiền hỗ trợ`)||e.includes(`tiền đãi ngộ`)||e.includes(`tiền`)||e.includes(`đãi ngộ`)||e.includes(`tổng số`)||e.includes(`thực lĩnh`)||e.includes(`hỗ trợ`)||e.includes(`mức hỗ trợ`)||e.includes(`thành tiền`));a===-1&&(a=6);let o=r.findIndex(e=>e.includes(`khoa`)||e.includes(`phòng`)||e.includes(`đơn vị`)||e.includes(`bộ phận`)||e.includes(`nơi làm việc`)),s=r.findIndex(e=>e.includes(`đối tượng`)||e.includes(`phân loại`)||e.includes(`trình độ`)||e.includes(`nghị quyết`)||e.includes(`chức danh`)||e.includes(`loại hỗ trợ`)),c=r.findIndex(e=>e.includes(`số tháng`)||e.includes(`thời gian`)),l=r.findIndex(e=>e.includes(`ghi chú`)||e.includes(`nội dung`)||e.includes(`chi tiết`)),u=[];for(let e=n+1;e<t.length;e++){let n=t[e];if(n.some(e=>e&&(e.toString().toLowerCase().includes(`tổng cộng`)||e.toString().toLowerCase()===`cộng`)))break;let r=n[i]?.toString().trim();if(!r||r===``||/^[IVXLCDM]+\./.test(r)||r.split(` `).length<2&&isNaN(r)===!1)continue;let d=a===-1?0:w(n[a]),f=s===-1?``:n[s]?.toString().trim(),p=o===-1?``:n[o]?.toString().trim(),m=c===-1?1:w(n[c]),h=l===-1?``:n[l]?.toString().trim(),g=`CUSTOM`;if(f){let e=f.toLowerCase();d===2e6||e.includes(`ckii`)||e.includes(`ck ii`)||e.includes(`tiến sĩ`)||e.includes(`ts`)?g=`TS_CKII`:d===15e5||e.includes(`cki`)||e.includes(`ck i`)||e.includes(`thạc sĩ`)||e.includes(`ths`)||e.includes(`nội trú`)||e.includes(`bsnt`)?g=`THS_CKI_BSNT`:d===12e5||e.includes(`đbkk`)||e.includes(`đặc biệt khó khăn`)?g=`BS_TYT_DBKK`:(d===1e6||e.includes(`tyt`)||e.includes(`trạm y tế`)||e.includes(`phòng khám`))&&(g=`BS_TYT`)}else d===2e6?g=`TS_CKII`:d===15e5?g=`THS_CKI_BSNT`:d===12e5?g=`BS_TYT_DBKK`:d===1e6&&(g=`BS_TYT`);u.push({name:r,dept:p,category:f||(g===`CUSTOM`?`Tùy chỉnh`:`Đãi ngộ NQ20`),categoryKey:g,amount:d,limit:d,months:m||1,content:h,notes:h})}return u}var U=()=>{let e=(i[n]||[]).filter(C),t=a[n]||[],r=o[n]||[],c=s[n]||[],l=e.reduce((e,t)=>e+t.total,0),u=t.reduce((e,t)=>e+(t.amount||0),0),d=r.reduce((e,t)=>e+(t.amount||0),0),f=c.reduce((e,t)=>e+(t.amount||0),0),p=l+u+d+f;return`
+  </div>`};function V(e){let t=Papa.parse(e,{skipEmptyLines:!0}).data,n=[];for(let e=1;e<t.length;e++){let r=t[e];if(r.some(e=>e&&(e.toString().toLowerCase().includes(`tổng cộng`)||e.toString().toLowerCase()===`cộng`)))break;if(!r[1])continue;let i=r[1].trim();n.push({name:i,amount:w(r[10]||r[20])})}return n}function H(e){let t=Papa.parse(e,{skipEmptyLines:!0}).data;if(t.length<2)return[];let n=t.findIndex(e=>e.some(e=>e&&(e.toString().toLowerCase().includes(`họ và tên`)||e.toString().toLowerCase().includes(`họ tên`)||e.toString().toLowerCase()===`họ tên`)));n===-1&&(n=0);let r=Array(t[n].length).fill(``);t[n].forEach((e,t)=>{e&&(r[t]=e.toString().toLowerCase().trim())});let i=r.findIndex(e=>e.includes(`họ tên`)||e.includes(`họ và tên`)||e.includes(`tên nhân viên`)||e.includes(`người hưởng`));i===-1&&(i=1);let a=r.findIndex(e=>e.includes(`số tiền`)||e.includes(`tiền hỗ trợ`)||e.includes(`tiền đãi ngộ`)||e.includes(`tiền`)||e.includes(`đãi ngộ`)||e.includes(`tổng số`)||e.includes(`thực lĩnh`)||e.includes(`hỗ trợ`)||e.includes(`mức hỗ trợ`)||e.includes(`thành tiền`));a===-1&&(a=6);let o=r.findIndex(e=>e.includes(`khoa`)||e.includes(`phòng`)||e.includes(`đơn vị`)||e.includes(`bộ phận`)||e.includes(`nơi làm việc`)),s=r.findIndex(e=>e.includes(`đối tượng`)||e.includes(`phân loại`)||e.includes(`trình độ`)||e.includes(`nghị quyết`)||e.includes(`chức danh`)||e.includes(`loại hỗ trợ`)),c=r.findIndex(e=>e.includes(`định mức`)),l=r.findIndex(e=>e.includes(`số tháng`)||e.includes(`thời gian`)),u=r.findIndex(e=>e.includes(`ghi chú`)||e.includes(`nội dung`)||e.includes(`chi tiết`)),d=[];for(let e=n+1;e<t.length;e++){let n=t[e];if(n.some(e=>e&&(e.toString().toLowerCase().includes(`tổng cộng`)||e.toString().toLowerCase()===`cộng`)))break;let r=n[i]?.toString().trim();if(!r||r===``||/^[IVXLCDM]+\./.test(r)||r.split(` `).length<2&&isNaN(r)===!1)continue;let f=a===-1?0:w(n[a]),p=l===-1?1:w(n[l]),m=c===-1?p?f/p:f:w(n[c]),h=s===-1?``:n[s]?.toString().trim(),g=o===-1?``:n[o]?.toString().trim(),_=u===-1?``:n[u]?.toString().trim(),v=`CUSTOM`;if(h){let e=h.toLowerCase();f===2e6||e.includes(`ckii`)||e.includes(`ck ii`)||e.includes(`tiến sĩ`)||e.includes(`ts`)?v=`TS_CKII`:f===15e5||e.includes(`cki`)||e.includes(`ck i`)||e.includes(`thạc sĩ`)||e.includes(`ths`)||e.includes(`nội trú`)||e.includes(`bsnt`)?v=`THS_CKI_BSNT`:f===12e5||e.includes(`đbkk`)||e.includes(`đặc biệt khó khăn`)?v=`BS_TYT_DBKK`:(f===1e6||e.includes(`tyt`)||e.includes(`trạm y tế`)||e.includes(`phòng khám`))&&(v=`BS_TYT`)}else f===2e6?v=`TS_CKII`:f===15e5?v=`THS_CKI_BSNT`:f===12e5?v=`BS_TYT_DBKK`:f===1e6&&(v=`BS_TYT`);d.push({name:r,dept:g,category:h||(v===`CUSTOM`?`Tùy chỉnh`:`Đãi ngộ NQ20`),categoryKey:v,amount:f,limit:m,months:p||1,content:_,notes:_})}return d}var U=()=>{let e=(i[n]||[]).filter(C),t=a[n]||[],r=o[n]||[],c=s[n]||[],l=e.reduce((e,t)=>e+t.total,0),u=t.reduce((e,t)=>e+(t.amount||0),0),d=r.reduce((e,t)=>e+(t.amount||0),0),f=c.reduce((e,t)=>e+(t.amount||0),0),p=l+u+d+f;return`
   <div class="fade-in">
     ${F(`Tổng quan `+n)}
     <div class="stats-grid">

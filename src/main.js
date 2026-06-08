@@ -636,15 +636,16 @@ const NQ20Module = () => {
             <tr>
               <th>TT</th>
               <th>Họ và tên</th>
-              <th>Đối tượng</th>
-              <th>Đơn vị công tác</th>
               ${viewMode === 'monthly' ? `
+                <th>Đối tượng</th>
+                <th>Đơn vị công tác</th>
                 <th>Định mức</th>
                 <th>Số tháng hưởng</th>
                 <th>Thành tiền</th>
                 <th>Ghi chú</th>
               ` : `
-                <th>Số tháng hưởng</th>
+                <th>Đơn vị công tác</th>
+                <th>Số tháng hưởng NQ20</th>
                 <th>Tổng số tiền đãi ngộ</th>
               `}
             </tr>
@@ -704,7 +705,7 @@ const NQ20Module = () => {
           ${filtered.length > 0 ? `
           <tfoot>
             <tr style="font-weight:700; background:var(--card-bg); border-top:2px solid var(--accent);">
-              <td colspan="4" style="text-align:left; padding-left:10px;">Tổng cộng: ${filtered.length} Bác sỹ</td>
+              <td colspan="${viewMode === 'monthly' ? 4 : 3}" style="text-align:left; padding-left:10px;">Tổng cộng: ${filtered.length} Bác sỹ</td>
               ${viewMode === 'monthly' ? `
                 <td></td>
                 <td></td>
@@ -758,6 +759,7 @@ function processNQ20CSV(text) {
   const deptIdx = combinedHeaders.findIndex(h => h.includes('khoa') || h.includes('phòng') || h.includes('đơn vị') || h.includes('bộ phận') || h.includes('nơi làm việc'));
   const categoryIdx = combinedHeaders.findIndex(h => h.includes('đối tượng') || h.includes('phân loại') || h.includes('trình độ') || h.includes('nghị quyết') || h.includes('chức danh') || h.includes('loại hỗ trợ'));
   
+  const limitIdx = combinedHeaders.findIndex(h => h.includes('định mức'));
   const monthsIdx = combinedHeaders.findIndex(h => h.includes('số tháng') || h.includes('thời gian'));
   const notesIdx = combinedHeaders.findIndex(h => h.includes('ghi chú') || h.includes('nội dung') || h.includes('chi tiết'));
 
@@ -770,9 +772,10 @@ function processNQ20CSV(text) {
     if (name.split(' ').length < 2 && isNaN(name) === false) continue;
 
     const amount = amtIdx !== -1 ? parseVNNumber(row[amtIdx]) : 0;
+    const monthsVal = monthsIdx !== -1 ? parseVNNumber(row[monthsIdx]) : 1;
+    const limit = limitIdx !== -1 ? parseVNNumber(row[limitIdx]) : (monthsVal ? amount / monthsVal : amount);
     const category = categoryIdx !== -1 ? row[categoryIdx]?.toString().trim() : '';
     const dept = deptIdx !== -1 ? row[deptIdx]?.toString().trim() : '';
-    const monthsVal = monthsIdx !== -1 ? parseVNNumber(row[monthsIdx]) : 1;
     const notesVal = notesIdx !== -1 ? row[notesIdx]?.toString().trim() : '';
 
     // Tự động phân tích đối tượng tương ứng dựa trên số tiền hoặc văn bản
@@ -802,7 +805,7 @@ function processNQ20CSV(text) {
       category: category || (categoryKey === 'CUSTOM' ? 'Tùy chỉnh' : 'Đãi ngộ NQ20'),
       categoryKey: categoryKey,
       amount: amount,
-      limit: amount, // Save as limit as well to show correct displayLimit
+      limit: limit,
       months: monthsVal || 1,
       content: notesVal,
       notes: notesVal
