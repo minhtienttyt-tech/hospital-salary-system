@@ -632,16 +632,18 @@ const NQ20Module = () => {
         <table class="salary-detail-table">
           <thead>
             <tr>
-              <th>STT</th>
-              <th>Họ tên</th>
-              <th>Khoa/Phòng</th>
+              <th>TT</th>
+              <th>Họ và tên</th>
+              <th>Đối tượng</th>
+              <th>Đơn vị công tác</th>
               ${viewMode === 'monthly' ? `
-                <th>Đối tượng đãi ngộ (Nghị quyết 20)</th>
-                <th>Ghi chú (Số tháng/Chi tiết)</th>
-                <th>Số tiền đãi ngộ</th>
+                <th>Định mức</th>
+                <th>Số tháng hưởng</th>
+                <th>Thành tiền</th>
+                <th>Ghi chú</th>
                 <th>Thao tác</th>
               ` : `
-                <th>Số tháng nhận</th>
+                <th>Số tháng hưởng</th>
                 <th>Tổng số tiền đãi ngộ</th>
               `}
             </tr>
@@ -651,22 +653,25 @@ const NQ20Module = () => {
               ? filtered.map((e, idx) => {
                   if (viewMode === 'monthly') {
                     const isSelected = (val) => {
-                      if (val === 'TS_CKII' && e.amount === 2000000) return 'selected';
-                      if (val === 'THS_CKI_BSNT' && e.amount === 1500000) return 'selected';
-                      if (val === 'BS_TYT_DBKK' && e.amount === 1200000) return 'selected';
-                      if (val === 'BS_TYT' && e.amount === 1000000) return 'selected';
                       if (e.categoryKey === val) return 'selected';
+                      const checkLimit = e.limit || e.amount;
+                      if (val === 'TS_CKII' && checkLimit === 2000000) return 'selected';
+                      if (val === 'THS_CKI_BSNT' && checkLimit === 1500000) return 'selected';
+                      if (val === 'BS_TYT_DBKK' && checkLimit === 1200000) return 'selected';
+                      if (val === 'BS_TYT' && checkLimit === 1000000) return 'selected';
                       return '';
                     };
                     
-                    const hasStandardAmount = [2000000, 1500000, 1200000, 1000000].includes(e.amount);
+                    const checkLimit = e.limit || e.amount;
+                    const hasStandardAmount = [2000000, 1500000, 1200000, 1000000].includes(checkLimit);
                     const isCustomSelected = !hasStandardAmount && !e.categoryKey || e.categoryKey === 'CUSTOM';
+                    const displayLimit = e.limit !== undefined ? e.limit : (hasStandardAmount ? checkLimit : e.amount);
+                    const displayMonths = e.months !== undefined ? e.months : 1;
 
                     return `
                     <tr>
                       <td>${idx+1}</td>
                       <td style="font-weight:600;">${e.name}</td>
-                      <td>${e.dept||''}</td>
                       <td>
                         <select class="select-input" onchange="window.updateNQ20Category('${e.name}', this.value)" style="width:100%;font-size:0.85rem;padding:4px 8px;">
                           <option value="TS_CKII" ${isSelected('TS_CKII')}>Tiến sĩ / Bác sĩ CKII (2,0M)</option>
@@ -677,10 +682,19 @@ const NQ20Module = () => {
                         </select>
                       </td>
                       <td>
-                        <input type="text" class="select-input" value="${e.content||e.notes||''}" onchange="window.updateNQ20Notes('${e.name}', this.value)" style="width:100%;font-size:0.85rem;padding:2px 6px;" placeholder="Ví dụ: Tháng 15/60">
+                        <input type="text" class="select-input" value="${e.dept||''}" onchange="window.updateNQ20Dept('${e.name}', this.value)" style="width:100%;font-size:0.85rem;padding:2px 6px;" placeholder="Đơn vị công tác">
                       </td>
                       <td>
-                        <input type="number" class="select-input" value="${e.amount}" onchange="window.updateNQ20Amount('${e.name}', this.value)" style="width:120px;text-align:right;font-size:0.85rem;padding:2px 6px;" ${!isCustomSelected && hasStandardAmount ? 'disabled' : ''}>
+                        <input type="number" class="select-input" value="${displayLimit}" onchange="window.updateNQ20Limit('${e.name}', this.value)" style="width:110px;text-align:right;font-size:0.85rem;padding:2px 6px;" ${!isCustomSelected ? 'disabled' : ''}>
+                      </td>
+                      <td>
+                        <input type="text" class="select-input" value="${displayMonths}" onchange="window.updateNQ20Months('${e.name}', this.value)" style="width:70px;text-align:center;font-size:0.85rem;padding:2px 6px;">
+                      </td>
+                      <td class="highlight-total" style="text-align:right; font-weight:700;">
+                        ${fmt(e.amount)}
+                      </td>
+                      <td>
+                        <input type="text" class="select-input" value="${e.notes||e.content||''}" onchange="window.updateNQ20Notes('${e.name}', this.value)" style="width:100%;font-size:0.85rem;padding:2px 6px;" placeholder="Ghi chú">
                       </td>
                       <td style="text-align:center;">
                         <button class="icon-btn" onclick="window.removeNQ20Employee('${e.name}')" style="color:#ef4444;display:inline-flex;padding:4px;"><i data-lucide="trash-2" size="16"></i></button>
@@ -697,9 +711,26 @@ const NQ20Module = () => {
                     </tr>`;
                   }
                 }).join('')
-              : `<tr><td colspan="${viewMode === 'monthly' ? 7 : 5}" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu đãi ngộ NQ20 tháng ${selectedMonth}.<br><br><div style="display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary" onclick="window.initializeNQ20FromSalary()">Khởi tạo từ Bảng lương</button><button class="btn btn-secondary" onclick="document.getElementById('import-nq20-btn').click()">Import ngay</button></div></td></tr>`
+              : `<tr><td colspan="${viewMode === 'monthly' ? 9 : 6}" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu đãi ngộ NQ20 tháng ${selectedMonth}.<br><br><div style="display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary" onclick="window.initializeNQ20FromSalary()">Khởi tạo từ Bảng lương</button><button class="btn btn-secondary" onclick="document.getElementById('import-nq20-btn').click()">Import ngay</button></div></td></tr>`
             }
           </tbody>
+          ${filtered.length > 0 ? `
+          <tfoot>
+            <tr style="font-weight:700; background:var(--card-bg); border-top:2px solid var(--accent);">
+              <td colspan="4" style="text-align:left; padding-left:10px;">Tổng cộng: ${filtered.length} Bác sỹ</td>
+              ${viewMode === 'monthly' ? `
+                <td></td>
+                <td></td>
+                <td style="text-align:right; font-weight:700; color:var(--primary);">${fmt(filtered.reduce((s, e) => s + (e.amount || 0), 0))}</td>
+                <td></td>
+                <td></td>
+              ` : `
+                <td style="text-align:center;">${filtered.reduce((s, e) => s + (e.months_count || 0), 0)}</td>
+                <td style="text-align:right; font-weight:700; color:var(--primary);">${fmt(filtered.reduce((s, e) => s + (e.amount || 0), 0))}</td>
+              `}
+            </tr>
+          </tfoot>
+          ` : ''}
         </table>
       </div>
     </div>
@@ -1192,18 +1223,30 @@ function autoInitializeAllNQ20() {
       const newList = [];
       doctors.forEach(doc => {
         let categoryKey = 'CUSTOM';
-        let amount = 0;
+        let limit = 0;
         const pos = (doc.position || '').toLowerCase();
         if (pos.includes('ckii') || pos.includes('ck ii') || pos.includes('tiến sĩ') || pos.includes('ts')) {
-          categoryKey = 'TS_CKII'; amount = 2000000;
+          categoryKey = 'TS_CKII'; limit = 2000000;
         } else if (pos.includes('cki') || pos.includes('ck i') || pos.includes('thạc sĩ') || pos.includes('ths') || pos.includes('nội trú') || pos.includes('bsnt')) {
-          categoryKey = 'THS_CKI_BSNT'; amount = 1500000;
+          categoryKey = 'THS_CKI_BSNT'; limit = 1500000;
         } else if ((doc.department || doc.dept || '').toLowerCase().includes('trạm y tế') || (doc.department || doc.dept || '').toLowerCase().includes('tyt')) {
-          categoryKey = 'BS_TYT'; amount = 1000000;
+          categoryKey = 'BS_TYT'; limit = 1000000;
         } else {
-          categoryKey = 'THS_CKI_BSNT'; amount = 1500000;
+          categoryKey = 'THS_CKI_BSNT'; limit = 1500000;
         }
-        newList.push({ name: doc.name, dept: doc.department || doc.dept || '', categoryKey, amount, content: '' });
+        newList.push({
+          name: doc.name,
+          dept: doc.department || doc.dept || '',
+          categoryKey,
+          category: categoryKey === 'TS_CKII' ? 'Tiến sĩ / Bác sĩ CKII' :
+                    categoryKey === 'THS_CKI_BSNT' ? 'Thạc sĩ / BSCKI / BS Nội trú' :
+                    categoryKey === 'BS_TYT_DBKK' ? 'Bác sĩ TYT xã ĐBKK' : 'Bác sĩ TYT',
+          limit: limit,
+          months: 1,
+          amount: limit,
+          content: '',
+          notes: ''
+        });
       });
       nq20Data[month] = newList;
       changed = true;
@@ -1382,28 +1425,30 @@ window.initializeNQ20FromSalary = function() {
     doctors.forEach(doc => {
       if (!newList.some(n => n.name === doc.name)) {
         let categoryKey = 'CUSTOM';
-        let amount = 0;
+        let limit = 0;
         const pos = doc.position.toLowerCase();
         if (pos.includes('ckii') || pos.includes('ck ii') || pos.includes('tiến sĩ') || pos.includes('ts')) {
-          categoryKey = 'TS_CKII';
-          amount = 2000000;
+          categoryKey = 'TS_CKII'; limit = 2000000;
         } else if (pos.includes('cki') || pos.includes('ck i') || pos.includes('thạc sĩ') || pos.includes('ths') || pos.includes('nội trú') || pos.includes('bsnt')) {
-          categoryKey = 'THS_CKI_BSNT';
-          amount = 1500000;
+          categoryKey = 'THS_CKI_BSNT'; limit = 1500000;
         } else if (doc.department.toLowerCase().includes('trạm y tế') || doc.department.toLowerCase().includes('tyt')) {
-          categoryKey = 'BS_TYT';
-          amount = 1000000;
+          categoryKey = 'BS_TYT'; limit = 1000000;
         } else {
-          categoryKey = 'THS_CKI_BSNT';
-          amount = 1500000;
+          categoryKey = 'THS_CKI_BSNT'; limit = 1500000;
         }
 
         newList.push({
           name: doc.name,
           dept: doc.department || '',
           categoryKey: categoryKey,
-          amount: amount,
-          content: ''
+          category: categoryKey === 'TS_CKII' ? 'Tiến sĩ / Bác sĩ CKII' :
+                    categoryKey === 'THS_CKI_BSNT' ? 'Thạc sĩ / BSCKI / BS Nội trú' :
+                    categoryKey === 'BS_TYT_DBKK' ? 'Bác sĩ TYT xã ĐBKK' : 'Bác sĩ TYT',
+          limit: limit,
+          months: 1,
+          amount: limit,
+          content: '',
+          notes: ''
         });
       }
     });
@@ -1415,8 +1460,12 @@ window.initializeNQ20FromSalary = function() {
             name: doc.name,
             dept: doc.department || '',
             categoryKey: 'CUSTOM',
+            category: 'Tùy chỉnh',
+            limit: 0,
+            months: 1,
             amount: 0,
-            content: ''
+            content: '',
+            notes: ''
           });
         });
       }
@@ -1455,8 +1504,12 @@ window.addNewNQ20Doctor = function() {
     name: name.trim(),
     dept: (dept || '').trim(),
     categoryKey: 'THS_CKI_BSNT',
+    category: 'Thạc sĩ / BSCKI / BS Nội trú',
+    limit: 1500000,
+    months: 1,
     amount: 1500000,
-    content: ''
+    content: '',
+    notes: ''
   });
   
   nq20Data[selectedMonth] = currentList;
@@ -1473,15 +1526,49 @@ window.removeNQ20Employee = function(name) {
   }
 };
 
+window.updateNQ20Dept = function(name, val) {
+  const currentList = nq20Data[selectedMonth] || [];
+  const emp = currentList.find(e => e.name === name);
+  if (emp) {
+    emp.dept = val;
+    saveToLocal();
+  }
+};
+
 window.updateNQ20Category = function(name, categoryKey) {
   const currentList = nq20Data[selectedMonth] || [];
   const emp = currentList.find(e => e.name === name);
   if (emp) {
     emp.categoryKey = categoryKey;
-    if (categoryKey === 'TS_CKII') emp.amount = 2000000;
-    else if (categoryKey === 'THS_CKI_BSNT') emp.amount = 1500000;
-    else if (categoryKey === 'BS_TYT_DBKK') emp.amount = 1200000;
-    else if (categoryKey === 'BS_TYT') emp.amount = 1000000;
+    if (categoryKey === 'TS_CKII') emp.limit = 2000000;
+    else if (categoryKey === 'THS_CKI_BSNT') emp.limit = 1500000;
+    else if (categoryKey === 'BS_TYT_DBKK') emp.limit = 1200000;
+    else if (categoryKey === 'BS_TYT') emp.limit = 1000000;
+    
+    emp.amount = Math.round((emp.limit || 0) * (emp.months || 1));
+    saveToLocal();
+    render();
+  }
+};
+
+window.updateNQ20Limit = function(name, val) {
+  const currentList = nq20Data[selectedMonth] || [];
+  const emp = currentList.find(e => e.name === name);
+  if (emp) {
+    emp.limit = parseVNNumber(val);
+    emp.amount = Math.round((emp.limit || 0) * (emp.months || 1));
+    saveToLocal();
+    render();
+  }
+};
+
+window.updateNQ20Months = function(name, val) {
+  const currentList = nq20Data[selectedMonth] || [];
+  const emp = currentList.find(e => e.name === name);
+  if (emp) {
+    const textVal = String(val).replace(',', '.');
+    emp.months = parseFloat(textVal) || 0;
+    emp.amount = Math.round((emp.limit || 0) * emp.months);
     saveToLocal();
     render();
   }
@@ -1667,29 +1754,56 @@ window.exportBonusToExcel = function() {
 window.exportNQ20ToExcel = function() {
   try {
     const isSummary = viewMode === 'summary';
-    const months = isSummary ? getMonthsInPeriod(summaryPeriod) : [selectedMonth];
-    const all = {};
-    months.forEach(m => {
-      const data = nq20Data[m] || [];
-      data.forEach(e => {
-        if (!all[e.name]) all[e.name] = { ...e, amount: 0, count: 0 };
-        all[e.name].amount += (e.amount || 0);
-        all[e.name].count++;
+    if (!isSummary) {
+      const emps = nq20Data[selectedMonth] || [];
+      const data = emps.map((e, i) => {
+        const checkLimit = e.limit || e.amount;
+        const displayLimit = e.limit !== undefined ? e.limit : checkLimit;
+        const displayMonths = e.months !== undefined ? e.months : 1;
+        return {
+          'TT': i + 1,
+          'Họ và tên': e.name,
+          'Đối tượng': e.category || e.categoryKey || 'Đãi ngộ NQ20',
+          'Đơn vị công tác': e.dept || '',
+          'Định mức': displayLimit,
+          'Số tháng hưởng': displayMonths,
+          'Thành tiền': e.amount,
+          'Ghi chú': e.notes || e.content || ''
+        };
       });
-    });
-    const data = Object.values(all).map((e, i) => ({
-      'STT': i + 1,
-      'Họ tên': e.name,
-      'Khoa/Phòng': e.dept,
-      'Nội dung': e.category || e.categoryKey || 'Đãi ngộ NQ20',
-      'Ghi chú': e.content || e.notes || '',
-      'Số tiền': e.amount
-    }));
-    if (!data.length) return alert('Không có dữ liệu!');
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "NQ20");
-    XLSX.writeFile(wb, `Dai_Ngo_NQ20_${isSummary?summaryPeriod:selectedMonth.replace('/','-')}.xlsx`);
+      if (!data.length) return alert('Không có dữ liệu!');
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "NQ20_Thang");
+      XLSX.writeFile(wb, `Dai_Ngo_NQ20_${selectedMonth.replace('/','-')}.xlsx`);
+    } else {
+      const months = getMonthsInPeriod(summaryPeriod);
+      const all = {};
+      months.forEach(m => {
+        const data = nq20Data[m] || [];
+        data.forEach(e => {
+          if (!all[e.name]) {
+            all[e.name] = { ...e, amount: 0, months_count: 0 };
+          }
+          all[e.name].amount += (e.amount || 0);
+          all[e.name].months_count += (e.months !== undefined ? e.months : 1);
+        });
+      });
+      const data = Object.values(all).map((e, i) => ({
+        'TT': i + 1,
+        'Họ và tên': e.name,
+        'Đối tượng': e.category || e.categoryKey || 'Đãi ngộ NQ20',
+        'Đơn vị công tác': e.dept || '',
+        'Số tháng hưởng': e.months_count,
+        'Tổng cộng': e.amount,
+        'Ghi chú': e.notes || e.content || ''
+      }));
+      if (!data.length) return alert('Không có dữ liệu!');
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "NQ20_TongHop");
+      XLSX.writeFile(wb, `Dai_Ngo_NQ20_TongHop_${summaryPeriod}.xlsx`);
+    }
   } catch (e) { alert('Lỗi: ' + e.message); }
 };
 
@@ -1946,45 +2060,77 @@ window.showReportPreview = function(type) {
     title = `BẢNG TỔNG HỢP CHI TRẢ ĐÃI NGỘ NQ20`;
     subTitle = periodText;
     
-    const months = isSummary ? getMonthsInPeriod(summaryPeriod) : [selectedMonth];
-    const all = {};
-    months.forEach(m => {
-      const data = nq20Data[m] || [];
-      data.forEach(e => {
-        if (!all[e.name]) {
-          all[e.name] = { ...e, amount: 0, months_count: 0 };
-        }
-        all[e.name].amount += (e.amount || 0);
-        all[e.name].months_count++;
+    let tableHeadersHTML = '';
+    let tableRowsHTML = '';
+    let tableFootHTML = '';
+
+    if (!isSummary) {
+      const emps = nq20Data[selectedMonth] || [];
+      tableHeadersHTML = `<tr><th>TT</th><th>Họ và tên</th><th>Đối tượng</th><th>Đơn vị công tác</th><th>Định mức</th><th>Số tháng</th><th>Thành tiền</th><th>Ghi chú</th></tr>`;
+      tableRowsHTML = emps.map((e, idx) => {
+        const checkLimit = e.limit || e.amount;
+        const displayLimit = e.limit !== undefined ? e.limit : checkLimit;
+        const displayMonths = e.months !== undefined ? e.months : 1;
+        return `<tr>
+          <td>${idx+1}</td>
+          <td>${e.name}</td>
+          <td>${e.category || e.categoryKey || 'Đãi ngộ NQ20'}</td>
+          <td>${e.dept||''}</td>
+          <td>${fmt(displayLimit)}</td>
+          <td>${displayMonths}</td>
+          <td style="font-weight:700;">${fmt(e.amount)}</td>
+          <td>${e.notes || e.content || ''}</td>
+        </tr>`;
+      }).join('');
+      tableFootHTML = `<tr>
+        <td colspan="4">TỔNG CỘNG: ${emps.length} Bác sỹ</td>
+        <td></td>
+        <td></td>
+        <td style="font-weight:700;">${fmt(emps.reduce((s, e) => s + (e.amount || 0), 0))}</td>
+        <td></td>
+      </tr>`;
+    } else {
+      const months = getMonthsInPeriod(summaryPeriod);
+      const all = {};
+      months.forEach(m => {
+        const data = nq20Data[m] || [];
+        data.forEach(e => {
+          if (!all[e.name]) {
+            all[e.name] = { ...e, amount: 0, months_count: 0 };
+          }
+          all[e.name].amount += (e.amount || 0);
+          all[e.name].months_count += (e.months !== undefined ? e.months : 1);
+        });
       });
-    });
-    const emps = Object.values(all);
+      const emps = Object.values(all);
+      tableHeadersHTML = `<tr><th>TT</th><th>Họ và tên</th><th>Đối tượng</th><th>Đơn vị công tác</th><th>Số tháng hưởng</th><th>Tổng tiền hỗ trợ</th><th>Ghi chú</th></tr>`;
+      tableRowsHTML = emps.map((e, idx) => `<tr>
+        <td>${idx+1}</td>
+        <td>${e.name}</td>
+        <td>${e.category || e.categoryKey || 'Đãi ngộ NQ20'}</td>
+        <td>${e.dept||''}</td>
+        <td style="text-align:center;">${e.months_count}</td>
+        <td style="font-weight:700;">${fmt(e.amount)}</td>
+        <td>${e.notes || e.content || ''}</td>
+      </tr>`).join('');
+      tableFootHTML = `<tr>
+        <td colspan="4">TỔNG CỘNG: ${emps.length} Bác sỹ</td>
+        <td style="text-align:center;">${emps.reduce((s, e) => s + (e.months_count || 0), 0)}</td>
+        <td style="font-weight:700;">${fmt(emps.reduce((s, e) => s + (e.amount || 0), 0))}</td>
+        <td></td>
+      </tr>`;
+    }
 
     tableHTML = `
       <table class="report-table">
         <thead>
-          <tr>
-            <th>TT</th><th>Họ và tên</th><th>Bộ phận</th>
-            ${isSummary ? '<th>Số tháng</th>' : ''}
-            <th>Nội dung / Phân loại</th>
-            <th>Ghi chú</th>
-            <th>Số tiền hỗ trợ</th>
-          </tr>
+          ${tableHeadersHTML}
         </thead>
         <tbody>
-          ${emps.map((e, idx) => `<tr>
-            <td>${idx+1}</td><td>${e.name}</td><td>${e.dept||''}</td>
-            ${isSummary ? `<td>${e.months_count}</td>` : ''}
-            <td>${e.category || e.categoryKey || 'Đãi ngộ NQ20'}</td>
-            <td>${e.content || e.notes || ''}</td>
-            <td style="font-weight:700;">${fmt(e.amount)}</td>
-          </tr>`).join('')}
+          ${tableRowsHTML}
         </tbody>
         <tfoot>
-          <tr>
-            <td colspan="${isSummary?6:5}">TỔNG CỘNG</td>
-            <td style="font-weight:700;">${fmt(emps.reduce((s, e) => s + (e.amount || 0), 0))}</td>
-          </tr>
+          ${tableFootHTML}
         </tfoot>
       </table>
     `;
