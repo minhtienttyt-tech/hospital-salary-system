@@ -741,21 +741,21 @@ function processNQ20CSV(text) {
   if (hIdx === -1) hIdx = 0;
 
   const combinedHeaders = Array(rows[hIdx].length).fill('');
-  for (let i = 0; i <= hIdx; i++) {
-    rows[i].forEach((cell, cellIdx) => {
-      if (cell) combinedHeaders[cellIdx] += ' ' + cell.toString().toLowerCase();
-    });
-  }
+  rows[hIdx].forEach((cell, cellIdx) => {
+    if (cell) combinedHeaders[cellIdx] = cell.toString().toLowerCase().trim();
+  });
 
   let nameIdx = combinedHeaders.findIndex(h => h.includes('họ tên') || h.includes('họ và tên') || h.includes('tên nhân viên') || h.includes('người hưởng'));
   if (nameIdx === -1) nameIdx = 1;
 
   let amtIdx = combinedHeaders.findIndex(h => h.includes('số tiền') || h.includes('tiền hỗ trợ') || h.includes('tiền đãi ngộ') || h.includes('tiền') || h.includes('đãi ngộ') || h.includes('tổng số') || h.includes('thực lĩnh') || h.includes('hỗ trợ') || h.includes('mức hỗ trợ') || h.includes('thành tiền'));
-  if (amtIdx === -1) amtIdx = 8;
+  if (amtIdx === -1) amtIdx = 6; // Default to 6 based on exact image structure
 
   const deptIdx = combinedHeaders.findIndex(h => h.includes('khoa') || h.includes('phòng') || h.includes('đơn vị') || h.includes('bộ phận') || h.includes('nơi làm việc'));
   const categoryIdx = combinedHeaders.findIndex(h => h.includes('đối tượng') || h.includes('phân loại') || h.includes('trình độ') || h.includes('nghị quyết') || h.includes('chức danh') || h.includes('loại hỗ trợ'));
-  const notesIdx = combinedHeaders.findIndex(h => h.includes('ghi chú') || h.includes('nội dung') || h.includes('chi tiết') || h.includes('số tháng') || h.includes('thời gian'));
+  
+  const monthsIdx = combinedHeaders.findIndex(h => h.includes('số tháng') || h.includes('thời gian'));
+  const notesIdx = combinedHeaders.findIndex(h => h.includes('ghi chú') || h.includes('nội dung') || h.includes('chi tiết'));
 
   const result = [];
   for (let i = hIdx + 1; i < rows.length; i++) {
@@ -767,6 +767,7 @@ function processNQ20CSV(text) {
     const amount = amtIdx !== -1 ? parseVNNumber(row[amtIdx]) : 0;
     const category = categoryIdx !== -1 ? row[categoryIdx]?.toString().trim() : '';
     const dept = deptIdx !== -1 ? row[deptIdx]?.toString().trim() : '';
+    const monthsVal = monthsIdx !== -1 ? parseVNNumber(row[monthsIdx]) : 1;
     const notesVal = notesIdx !== -1 ? row[notesIdx]?.toString().trim() : '';
 
     // Tự động phân tích đối tượng tương ứng dựa trên số tiền hoặc văn bản
@@ -796,6 +797,8 @@ function processNQ20CSV(text) {
       category: category || (categoryKey === 'CUSTOM' ? 'Tùy chỉnh' : 'Đãi ngộ NQ20'),
       categoryKey: categoryKey,
       amount: amount,
+      limit: amount, // Save as limit as well to show correct displayLimit
+      months: monthsVal || 1,
       content: notesVal,
       notes: notesVal
     });
