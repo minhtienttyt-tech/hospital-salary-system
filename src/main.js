@@ -721,7 +721,7 @@ function processNQ20CSV(text) {
   const rows = Papa.parse(text, { skipEmptyLines: true }).data;
   if (rows.length < 2) return [];
 
-  let hIdx = rows.findIndex(r => r.some(c => c && c.toString().toLowerCase().includes('họ và tên')));
+  let hIdx = rows.findIndex(r => r.some(c => c && (c.toString().toLowerCase().includes('họ và tên') || c.toString().toLowerCase().includes('họ tên') || c.toString().toLowerCase() === 'họ tên')));
   if (hIdx === -1) hIdx = 0;
 
   const combinedHeaders = Array(rows[hIdx].length).fill('');
@@ -731,26 +731,57 @@ function processNQ20CSV(text) {
     });
   }
 
-  let nameIdx = combinedHeaders.findIndex(h => h.includes('họ và tên'));
-  let amtIdx = combinedHeaders.findIndex(h => h.includes('tiền') || h.includes('đối tượng') || h.includes('đãi ngộ') || h.includes('tổng số') || h.includes('thực lĩnh') || h.includes('hỗ trợ'));
-  if (amtIdx === -1) amtIdx = 8;
+  let nameIdx = combinedHeaders.findIndex(h => h.includes('họ tên') || h.includes('họ và tên') || h.includes('tên nhân viên') || h.includes('người hưởng'));
   if (nameIdx === -1) nameIdx = 1;
 
-  const deptIdx = combinedHeaders.findIndex(h => h.includes('khoa') || h.includes('phòng') || h.includes('đơn vị') || h.includes('bộ phận'));
-  const categoryIdx = combinedHeaders.findIndex(h => h.includes('đối tượng') || h.includes('phân loại') || h.includes('trình độ') || h.includes('nghị quyết'));
+  let amtIdx = combinedHeaders.findIndex(h => h.includes('số tiền') || h.includes('tiền hỗ trợ') || h.includes('tiền đãi ngộ') || h.includes('tiền') || h.includes('đãi ngộ') || h.includes('tổng số') || h.includes('thực lĩnh') || h.includes('hỗ trợ') || h.includes('mức hỗ trợ') || h.includes('thành tiền'));
+  if (amtIdx === -1) amtIdx = 8;
+
+  const deptIdx = combinedHeaders.findIndex(h => h.includes('khoa') || h.includes('phòng') || h.includes('đơn vị') || h.includes('bộ phận') || h.includes('nơi làm việc'));
+  const categoryIdx = combinedHeaders.findIndex(h => h.includes('đối tượng') || h.includes('phân loại') || h.includes('trình độ') || h.includes('nghị quyết') || h.includes('chức danh') || h.includes('loại hỗ trợ'));
+  const notesIdx = combinedHeaders.findIndex(h => h.includes('ghi chú') || h.includes('nội dung') || h.includes('chi tiết') || h.includes('số tháng') || h.includes('thời gian'));
 
   const result = [];
   for (let i = hIdx + 1; i < rows.length; i++) {
     const row = rows[i];
     const name = row[nameIdx]?.toString().trim();
-    if (!name || name === '' || name.toLowerCase().includes('tổng cộng') || /^[IVXLCDM]+\./.test(name)) continue;
+    if (!name || name === '' || name.toLowerCase().includes('tổng cộng') || name.toLowerCase().includes('cộng') || /^[IVXLCDM]+\./.test(name)) continue;
     if (name.split(' ').length < 2 && isNaN(name) === false) continue;
+
+    const amount = amtIdx !== -1 ? parseVNNumber(row[amtIdx]) : 0;
+    const category = categoryIdx !== -1 ? row[categoryIdx]?.toString().trim() : '';
+    const dept = deptIdx !== -1 ? row[deptIdx]?.toString().trim() : '';
+    const notesVal = notesIdx !== -1 ? row[notesIdx]?.toString().trim() : '';
+
+    // Tự động phân tích đối tượng tương ứng dựa trên số tiền hoặc văn bản
+    let categoryKey = 'CUSTOM';
+    if (category) {
+      const catLower = category.toLowerCase();
+      if (amount === 2000000 || catLower.includes('ckii') || catLower.includes('ck ii') || catLower.includes('tiến sĩ') || catLower.includes('ts')) {
+        categoryKey = 'TS_CKII';
+      } else if (amount === 1500000 || catLower.includes('cki') || catLower.includes('ck i') || catLower.includes('thạc sĩ') || catLower.includes('ths') || catLower.includes('nội trú') || catLower.includes('bsnt')) {
+        categoryKey = 'THS_CKI_BSNT';
+      } else if (amount === 1200000 || catLower.includes('đbkk') || catLower.includes('đặc biệt khó khăn')) {
+        categoryKey = 'BS_TYT_DBKK';
+      } else if (amount === 1000000 || catLower.includes('tyt') || catLower.includes('trạm y tế') || catLower.includes('phòng khám')) {
+        categoryKey = 'BS_TYT';
+      }
+    } else {
+      // Fallback chỉ dựa trên số tiền hỗ trợ
+      if (amount === 2000000) categoryKey = 'TS_CKII';
+      else if (amount === 1500000) categoryKey = 'THS_CKI_BSNT';
+      else if (amount === 1200000) categoryKey = 'BS_TYT_DBKK';
+      else if (amount === 1000000) categoryKey = 'BS_TYT';
+    }
 
     result.push({
       name: name,
-      dept: deptIdx !== -1 ? row[deptIdx]?.toString().trim() : '',
-      category: categoryIdx !== -1 ? row[categoryIdx]?.toString().trim() : 'Đãi ngộ NQ20',
-      amount: parseVNNumber(row[amtIdx])
+      dept: dept,
+      category: category || (categoryKey === 'CUSTOM' ? 'Tùy chỉnh' : 'Đãi ngộ NQ20'),
+      categoryKey: categoryKey,
+      amount: amount,
+      content: notesVal,
+      notes: notesVal
     });
   }
   return result;
