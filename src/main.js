@@ -153,6 +153,7 @@ function processCSV(csvText) {
   for (let i = hIdx + 1; i < rows.length; i++) {
     const row = rows[i];
     const name = String(row[1] || '').trim();
+    if (name.toLowerCase().includes('tổng cộng') || name.toLowerCase() === 'cộng') break;
     if (!isRealEmployee({ name })) continue;
     const coefficients = { base: row[4], area: row[5], vkhung: row[6], position: row[7], responsibility: row[8], incentive: row[9], toxic: row[10], party: row[11] };
     const rawAmounts = [
@@ -209,7 +210,8 @@ function processBonusCSV(text) {
   for (let i = hIdx + 1; i < rows.length; i++) {
     const row = rows[i];
     const name = row[nameIdx]?.toString().trim();
-    if (!name || name === '' || name.toLowerCase().includes('tổng cộng') || /^[IVXLCDM]+\./.test(name)) continue;
+    if (name && (name.toLowerCase().includes('tổng cộng') || name.toLowerCase() === 'cộng')) break;
+    if (!name || name === '' || /^[IVXLCDM]+\./.test(name)) continue;
     
     // Kiểm tra hàng rác (ví dụ hàng chỉ có số thứ tự cột)
     if (name.split(' ').length < 2 && isNaN(name) === false) continue;
@@ -728,7 +730,9 @@ function processOvertimeCSV(text) {
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row[1]) continue;
-    result.push({ name: row[1].trim(), amount: parseVNNumber(row[10] || row[20]) });
+    const name = row[1].trim();
+    if (name.toLowerCase().includes('tổng cộng') || name.toLowerCase() === 'cộng') break;
+    result.push({ name: name, amount: parseVNNumber(row[10] || row[20]) });
   }
   return result;
 }
@@ -761,7 +765,8 @@ function processNQ20CSV(text) {
   for (let i = hIdx + 1; i < rows.length; i++) {
     const row = rows[i];
     const name = row[nameIdx]?.toString().trim();
-    if (!name || name === '' || name.toLowerCase().includes('tổng cộng') || name.toLowerCase().includes('cộng') || /^[IVXLCDM]+\./.test(name)) continue;
+    if (name && (name.toLowerCase().includes('tổng cộng') || name.toLowerCase() === 'cộng')) break;
+    if (!name || name === '' || /^[IVXLCDM]+\./.test(name)) continue;
     if (name.split(' ').length < 2 && isNaN(name) === false) continue;
 
     const amount = amtIdx !== -1 ? parseVNNumber(row[amtIdx]) : 0;
