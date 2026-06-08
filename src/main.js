@@ -624,7 +624,7 @@ const NQ20Module = () => {
         </div>
         <div style="display:flex;gap:0.5rem;align-items:center;">
           <button class="btn btn-secondary" onclick="window.showReportPreview('nq20')" title="Xem trước & Xuất báo cáo"><i data-lucide="printer" size="16"></i> Xem trước & Xuất</button>
-          ${viewMode === 'monthly' ? `<button class="btn btn-secondary" onclick="window.addNewNQ20Doctor()"><i data-lucide="plus" size="16"></i> Thêm cá nhân</button>` : ''}
+          ${viewMode === 'monthly' ? `` : ''}
           <button class="btn btn-primary" id="import-nq20-btn">Import NQ20</button>
         </div>
       </div>
@@ -641,7 +641,6 @@ const NQ20Module = () => {
                 <th>Số tháng hưởng</th>
                 <th>Thành tiền</th>
                 <th>Ghi chú</th>
-                <th>Thao tác</th>
               ` : `
                 <th>Số tháng hưởng</th>
                 <th>Tổng số tiền đãi ngộ</th>
@@ -673,32 +672,18 @@ const NQ20Module = () => {
                       <td>${idx+1}</td>
                       <td style="font-weight:600;">${e.name}</td>
                       <td>
-                        <select class="select-input" onchange="window.updateNQ20Category('${e.name}', this.value)" style="width:100%;font-size:0.85rem;padding:4px 8px;">
-                          <option value="TS_CKII" ${isSelected('TS_CKII')}>Tiến sĩ / Bác sĩ CKII (2,0M)</option>
-                          <option value="THS_CKI_BSNT" ${isSelected('THS_CKI_BSNT')}>Thạc sĩ / BSCKI / BS Nội trú (1,5M)</option>
-                          <option value="BS_TYT_DBKK" ${isSelected('BS_TYT_DBKK')}>Bác sĩ TYT xã ĐBKK (1,2M)</option>
-                          <option value="BS_TYT" ${isSelected('BS_TYT')}>Bác sĩ Trạm y tế / PKĐKKV (1,0M)</option>
-                          <option value="CUSTOM" ${isCustomSelected?'selected':''}>Khác (Tùy chỉnh số tiền)</option>
-                        </select>
+                        ${e.category || (e.categoryKey === 'TS_CKII' ? 'Tiến sĩ / Bác sĩ CKII (2,0M)' :
+                          e.categoryKey === 'THS_CKI_BSNT' ? 'Thạc sĩ / BSCKI / BS Nội trú (1,5M)' :
+                          e.categoryKey === 'BS_TYT_DBKK' ? 'Bác sĩ TYT xã ĐBKK (1,2M)' :
+                          e.categoryKey === 'BS_TYT' ? 'Bác sĩ Trạm y tế / PKĐKKV (1,0M)' : 'Khác')}
                       </td>
-                      <td>
-                        <input type="text" class="select-input" value="${e.dept||''}" onchange="window.updateNQ20Dept('${e.name}', this.value)" style="width:100%;font-size:0.85rem;padding:2px 6px;" placeholder="Đơn vị công tác">
-                      </td>
-                      <td>
-                        <input type="number" class="select-input" value="${displayLimit}" onchange="window.updateNQ20Limit('${e.name}', this.value)" style="width:110px;text-align:right;font-size:0.85rem;padding:2px 6px;" ${!isCustomSelected ? 'disabled' : ''}>
-                      </td>
-                      <td>
-                        <input type="text" class="select-input" value="${displayMonths}" onchange="window.updateNQ20Months('${e.name}', this.value)" style="width:70px;text-align:center;font-size:0.85rem;padding:2px 6px;">
-                      </td>
+                      <td>${e.dept||''}</td>
+                      <td style="text-align:right;">${fmt(displayLimit)}</td>
+                      <td style="text-align:center;">${displayMonths}</td>
                       <td class="highlight-total" style="text-align:right; font-weight:700;">
                         ${fmt(e.amount)}
                       </td>
-                      <td>
-                        <input type="text" class="select-input" value="${e.notes||e.content||''}" onchange="window.updateNQ20Notes('${e.name}', this.value)" style="width:100%;font-size:0.85rem;padding:2px 6px;" placeholder="Ghi chú">
-                      </td>
-                      <td style="text-align:center;">
-                        <button class="icon-btn" onclick="window.removeNQ20Employee('${e.name}')" style="color:#ef4444;display:inline-flex;padding:4px;"><i data-lucide="trash-2" size="16"></i></button>
-                      </td>
+                      <td>${e.notes||e.content||''}</td>
                     </tr>`;
                   } else {
                     return `
@@ -711,7 +696,7 @@ const NQ20Module = () => {
                     </tr>`;
                   }
                 }).join('')
-              : `<tr><td colspan="${viewMode === 'monthly' ? 9 : 6}" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu đãi ngộ NQ20 tháng ${selectedMonth}.<br><br><div style="display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary" onclick="window.initializeNQ20FromSalary()">Khởi tạo từ Bảng lương</button><button class="btn btn-secondary" onclick="document.getElementById('import-nq20-btn').click()">Import ngay</button></div></td></tr>`
+              : `<tr><td colspan="${viewMode === 'monthly' ? 8 : 6}" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu đãi ngộ NQ20 tháng ${selectedMonth}.<br><br><div style="display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary" onclick="window.initializeNQ20FromSalary()">Khởi tạo từ Bảng lương</button><button class="btn btn-secondary" onclick="document.getElementById('import-nq20-btn').click()">Import ngay</button></div></td></tr>`
             }
           </tbody>
           ${filtered.length > 0 ? `
