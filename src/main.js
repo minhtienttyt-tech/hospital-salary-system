@@ -53,7 +53,7 @@ window.deleteNQ20Month = function() {
   const ms = document.getElementById('nq20-month-selector') || document.getElementById('month-selector');
   if(ms) selectedMonth = ms.value;
   if (confirm('Xóa dữ liệu đãi ngộ NQ20 tháng ' + selectedMonth + '?')) {
-    delete nq20Data[selectedMonth];
+    nq20Data[selectedMonth] = [];
     saveToLocal();
     render();
   }
@@ -1146,11 +1146,47 @@ const BudgetPlanningModule = () => {
   </div>`;
 };
 
+function autoInitializeAllNQ20() {
+  let changed = false;
+  Object.keys(salaryData).forEach(month => {
+    if (!nq20Data[month] && salaryData[month] && salaryData[month].length > 0) {
+      const emps = salaryData[month];
+      const doctors = emps.filter(isRealEmployee).filter(e => {
+        const pos = (e.position || '').toLowerCase();
+        const dept = (e.department || e.dept || '').toLowerCase();
+        return pos.includes('bác sĩ') || pos.includes('bác sỹ') || pos.includes('bs') ||
+               dept.includes('khám bệnh') || dept.includes('lâm sàng') ||
+               pos.includes('đông y') || pos.includes('chuyên khoa');
+      });
+      const newList = [];
+      doctors.forEach(doc => {
+        let categoryKey = 'CUSTOM';
+        let amount = 0;
+        const pos = (doc.position || '').toLowerCase();
+        if (pos.includes('ckii') || pos.includes('ck ii') || pos.includes('tiến sĩ') || pos.includes('ts')) {
+          categoryKey = 'TS_CKII'; amount = 2000000;
+        } else if (pos.includes('cki') || pos.includes('ck i') || pos.includes('thạc sĩ') || pos.includes('ths') || pos.includes('nội trú') || pos.includes('bsnt')) {
+          categoryKey = 'THS_CKI_BSNT'; amount = 1500000;
+        } else if ((doc.department || doc.dept || '').toLowerCase().includes('trạm y tế') || (doc.department || doc.dept || '').toLowerCase().includes('tyt')) {
+          categoryKey = 'BS_TYT'; amount = 1000000;
+        } else {
+          categoryKey = 'THS_CKI_BSNT'; amount = 1500000;
+        }
+        newList.push({ name: doc.name, dept: doc.department || doc.dept || '', categoryKey, amount, content: '' });
+      });
+      nq20Data[month] = newList;
+      changed = true;
+    }
+  });
+  if (changed) saveToLocal();
+}
+
 const render = () => {
   const app = document.getElementById('app');
   if(!app) return;
   
   try {
+    autoInitializeAllNQ20();
     let content = '';
     switch(currentTab) {
       case 'salary': content = SalaryTable(); break;
