@@ -333,6 +333,19 @@ function aggregateData(dataObj, monthList) {
 
 function getMonthsInPeriod(period, year = '2026') {
   if (period === 'all') return Array.from({length: 12}, (_, i) => `${(i+1).toString().padStart(2,'0')}/${year}`);
+  if (period === 'all_years') {
+    const allMonths = [];
+    for (let y = 2020; y <= 2030; y++) {
+      for (let i = 1; i <= 12; i++) {
+        allMonths.push(`${i.toString().padStart(2,'0')}/${y}`);
+      }
+    }
+    return allMonths;
+  }
+  if (period.startsWith('y')) {
+    const y = period.substring(1);
+    return Array.from({length: 12}, (_, i) => `${(i+1).toString().padStart(2,'0')}/${y}`);
+  }
   if (period.startsWith('q')) {
     const q = parseInt(period[1]);
     return [`${(q*3-2).toString().padStart(2,'0')}/${year}`, `${(q*3-1).toString().padStart(2,'0')}/${year}`, `${(q*3).toString().padStart(2,'0')}/${year}`];
@@ -649,7 +662,11 @@ const NQ20Module = () => {
     const months = getMonthsInPeriod(summaryPeriod);
     const agg = aggregateData(nq20Data, months);
     filtered = searchFilter ? agg.filter(e => e.name.toLowerCase().includes(searchFilter.toLowerCase())) : agg;
-    title = 'Tổng hợp Đãi ngộ NQ20 ' + (summaryPeriod === 'all' ? 'Cả năm' : 'Quý ' + summaryPeriod[1]);
+    let periodText = 'Quý ' + summaryPeriod[1];
+    if (summaryPeriod === 'all') periodText = 'Cả năm';
+    else if (summaryPeriod.startsWith('y')) periodText = 'Năm ' + summaryPeriod.substring(1);
+    else if (summaryPeriod === 'all_years') periodText = 'Tất cả các năm';
+    title = 'Tổng hợp Đãi ngộ NQ20 ' + periodText;
   }
   const months = sortMonthsDesc([...new Set([...Object.keys(salaryData), ...Object.keys(nq20Data)])]);
   
@@ -670,7 +687,12 @@ const NQ20Module = () => {
             <button class="btn btn-secondary" id="delete-nq20-btn" style="color:#ef4444;font-size:0.85rem;">🗑️ Xóa</button>
           ` : `
             <select class="select-input" id="nq20-period-selector">
-              <option value="all" ${summaryPeriod==='all'?'selected':''}>Cả năm 2026</option>
+              <option value="all_years" ${summaryPeriod==='all_years'?'selected':''}>Tất cả các năm</option>
+              <option value="y2026" ${summaryPeriod==='y2026'?'selected':''}>Năm 2026</option>
+              <option value="y2025" ${summaryPeriod==='y2025'?'selected':''}>Năm 2025</option>
+              <option value="y2024" ${summaryPeriod==='y2024'?'selected':''}>Năm 2024</option>
+              <option value="y2023" ${summaryPeriod==='y2023'?'selected':''}>Năm 2023</option>
+              <option value="all" ${summaryPeriod==='all'?'selected':''}>Cả năm hiện tại</option>
               <option value="q1" ${summaryPeriod==='q1'?'selected':''}>Quý I</option>
               <option value="q2" ${summaryPeriod==='q2'?'selected':''}>Quý II</option>
               <option value="q3" ${summaryPeriod==='q3'?'selected':''}>Quý III</option>
@@ -743,13 +765,14 @@ const NQ20Module = () => {
                       <td>${e.notes||e.content||''}</td>
                     </tr>`;
                   } else {
+                    const isRed = e.months_count >= 59;
                     return `
-                    <tr>
+                    <tr style="${isRed ? 'color: #ef4444; background: #fee2e2;' : ''}" title="${isRed ? 'Đã hưởng từ 59 tháng trở lên' : ''}">
                       <td>${idx+1}</td>
                       <td style="font-weight:600;">${e.name}</td>
                       <td>${e.dept||''}</td>
-                      <td style="text-align:center;">${e.months_count}</td>
-                      <td class="highlight-total">${fmt(e.amount)}</td>
+                      <td style="text-align:center; font-weight: ${isRed ? '700' : 'normal'};">${e.months_count}</td>
+                      <td class="highlight-total" style="${isRed ? 'color: #ef4444;' : ''}">${fmt(e.amount)}</td>
                     </tr>`;
                   }
                 }).join('')

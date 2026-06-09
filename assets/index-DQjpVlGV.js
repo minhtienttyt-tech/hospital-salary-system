@@ -33,7 +33,7 @@
       <button id="theme-toggle" class="icon-btn" title="Đổi màu nền"><i data-lucide="moon"></i></button>
       <button onclick="window.emergencyReset()" class="icon-btn" title="Khôi phục hệ thống" style="color:#ef4444;"><i data-lucide="refresh-cw"></i></button>
     </div>
-  </aside>`;function N(e,t){let n={};return t.forEach(t=>{e[t]&&e[t].forEach(e=>{let t=e.name||e[1];if(t&&(n[t]||(n[t]={...e,months_count:0},Object.keys(n[t]).forEach(e=>{typeof n[t][e]==`number`&&(n[t][e]=0)}),Array.isArray(e.rawAmounts)&&(n[t].rawAmounts=Array(e.rawAmounts.length).fill(0))),n[t].months_count+=e.months===void 0?1:e.months,Object.keys(e).forEach(r=>{typeof e[r]==`number`&&(n[t][r]=(n[t][r]||0)+e[r])}),Array.isArray(e.rawAmounts))){let r=n[t].rawAmounts||[];e.rawAmounts.forEach((e,t)=>{r[t]=(r[t]||0)+(e||0)}),n[t].rawAmounts=r}})}),Object.values(n).sort((e,t)=>(e.id||0)-(t.id||0))}function P(e,t=`2026`){if(e===`all`)return Array.from({length:12},(e,n)=>`${(n+1).toString().padStart(2,`0`)}/${t}`);if(e.startsWith(`q`)){let n=parseInt(e[1]);return[`${(n*3-2).toString().padStart(2,`0`)}/${t}`,`${(n*3-1).toString().padStart(2,`0`)}/${t}`,`${(n*3).toString().padStart(2,`0`)}/${t}`]}return[]}var F=e=>`
+  </aside>`;function N(e,t){let n={};return t.forEach(t=>{e[t]&&e[t].forEach(e=>{let t=e.name||e[1];if(t&&(n[t]||(n[t]={...e,months_count:0},Object.keys(n[t]).forEach(e=>{typeof n[t][e]==`number`&&(n[t][e]=0)}),Array.isArray(e.rawAmounts)&&(n[t].rawAmounts=Array(e.rawAmounts.length).fill(0))),n[t].months_count+=e.months===void 0?1:e.months,Object.keys(e).forEach(r=>{typeof e[r]==`number`&&(n[t][r]=(n[t][r]||0)+e[r])}),Array.isArray(e.rawAmounts))){let r=n[t].rawAmounts||[];e.rawAmounts.forEach((e,t)=>{r[t]=(r[t]||0)+(e||0)}),n[t].rawAmounts=r}})}),Object.values(n).sort((e,t)=>(e.id||0)-(t.id||0))}function P(e,t=`2026`){if(e===`all`)return Array.from({length:12},(e,n)=>`${(n+1).toString().padStart(2,`0`)}/${t}`);if(e===`all_years`){let e=[];for(let t=2020;t<=2030;t++)for(let n=1;n<=12;n++)e.push(`${n.toString().padStart(2,`0`)}/${t}`);return e}if(e.startsWith(`y`)){let t=e.substring(1);return Array.from({length:12},(e,n)=>`${(n+1).toString().padStart(2,`0`)}/${t}`)}if(e.startsWith(`q`)){let n=parseInt(e[1]);return[`${(n*3-2).toString().padStart(2,`0`)}/${t}`,`${(n*3-1).toString().padStart(2,`0`)}/${t}`,`${(n*3).toString().padStart(2,`0`)}/${t}`]}return[]}var F=e=>`
   <header class="top-bar">
     <h1 style="font-size:1.5rem;font-weight:700;">${e}</h1>
     <div class="search-bar"><i data-lucide="search" size="18"></i><input type="text" id="search-input" placeholder="Tìm kiếm..."></div>
@@ -199,7 +199,7 @@
         </table>
       </div>
     </div>
-  </div>`},V=()=>{let e=[],t=``;if(d===`monthly`){let r=s[n]||[];e=u?r.filter(e=>e.name.toLowerCase().includes(u.toLowerCase())):r,t=`Danh sách Đãi ngộ NQ20 ${n}`}else{let n=P(f),r=N(s,n);e=u?r.filter(e=>e.name.toLowerCase().includes(u.toLowerCase())):r,t=`Tổng hợp Đãi ngộ NQ20 `+(f===`all`?`Cả năm`:`Quý `+f[1])}let r=E([...new Set([...Object.keys(i),...Object.keys(s)])]);return`
+  </div>`},V=()=>{let e=[],t=``;if(d===`monthly`){let r=s[n]||[];e=u?r.filter(e=>e.name.toLowerCase().includes(u.toLowerCase())):r,t=`Danh sách Đãi ngộ NQ20 ${n}`}else{let n=P(f),r=N(s,n);e=u?r.filter(e=>e.name.toLowerCase().includes(u.toLowerCase())):r;let i=`Quý `+f[1];f===`all`?i=`Cả năm`:f.startsWith(`y`)?i=`Năm `+f.substring(1):f===`all_years`&&(i=`Tất cả các năm`),t=`Tổng hợp Đãi ngộ NQ20 `+i}let r=E([...new Set([...Object.keys(i),...Object.keys(s)])]);return`
   <div class="fade-in">
     ${F(t)}
     <div class="card">
@@ -216,7 +216,12 @@
             <button class="btn btn-secondary" id="delete-nq20-btn" style="color:#ef4444;font-size:0.85rem;">🗑️ Xóa</button>
           `:`
             <select class="select-input" id="nq20-period-selector">
-              <option value="all" ${f===`all`?`selected`:``}>Cả năm 2026</option>
+              <option value="all_years" ${f===`all_years`?`selected`:``}>Tất cả các năm</option>
+              <option value="y2026" ${f===`y2026`?`selected`:``}>Năm 2026</option>
+              <option value="y2025" ${f===`y2025`?`selected`:``}>Năm 2025</option>
+              <option value="y2024" ${f===`y2024`?`selected`:``}>Năm 2024</option>
+              <option value="y2023" ${f===`y2023`?`selected`:``}>Năm 2023</option>
+              <option value="all" ${f===`all`?`selected`:``}>Cả năm hiện tại</option>
               <option value="q1" ${f===`q1`?`selected`:``}>Quý I</option>
               <option value="q2" ${f===`q2`?`selected`:``}>Quý II</option>
               <option value="q3" ${f===`q3`?`selected`:``}>Quý III</option>
@@ -265,14 +270,14 @@
                         ${O(e.amount)}
                       </td>
                       <td>${e.notes||e.content||``}</td>
-                    </tr>`}else return`
-                    <tr>
+                    </tr>`}else{let n=e.months_count>=59;return`
+                    <tr style="${n?`color: #ef4444; background: #fee2e2;`:``}" title="${n?`Đã hưởng từ 59 tháng trở lên`:``}">
                       <td>${t+1}</td>
                       <td style="font-weight:600;">${e.name}</td>
                       <td>${e.dept||``}</td>
-                      <td style="text-align:center;">${e.months_count}</td>
-                      <td class="highlight-total">${O(e.amount)}</td>
-                    </tr>`}).join(``):`<tr><td colspan="${d===`monthly`?8:6}" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu đãi ngộ NQ20 tháng ${n}.<br><br><div style="display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary" onclick="window.initializeNQ20FromSalary()">Khởi tạo từ Bảng lương</button><button class="btn btn-secondary" onclick="document.getElementById('import-nq20-btn').click()">Import ngay</button></div></td></tr>`}
+                      <td style="text-align:center; font-weight: ${n?`700`:`normal`};">${e.months_count}</td>
+                      <td class="highlight-total" style="${n?`color: #ef4444;`:``}">${O(e.amount)}</td>
+                    </tr>`}}).join(``):`<tr><td colspan="${d===`monthly`?8:6}" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu đãi ngộ NQ20 tháng ${n}.<br><br><div style="display:flex;gap:0.5rem;justify-content:center;"><button class="btn btn-primary" onclick="window.initializeNQ20FromSalary()">Khởi tạo từ Bảng lương</button><button class="btn btn-secondary" onclick="document.getElementById('import-nq20-btn').click()">Import ngay</button></div></td></tr>`}
           </tbody>
           ${e.length>0?`
           <tfoot>
