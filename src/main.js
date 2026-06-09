@@ -600,7 +600,13 @@ const OvertimeModule = () => {
       <div class="table-container" style="max-height:650px;">
         <table class="salary-detail-table">
           <thead><tr><th>STT</th><th>Họ tên</th><th>Tổng lĩnh</th></tr></thead>
-          <tbody>${filtered.map((e, idx) => `<tr><td>${idx+1}</td><td>${e.name}</td><td>${fmt(e.amount)}</td></tr>`).join('')}</tbody>
+          <tbody>
+            ${filtered.length > 0 
+              ? filtered.map((e, idx) => `<tr><td>${idx+1}</td><td>${e.name}</td><td>${fmt(e.amount)}</td></tr>`).join('') + 
+                `<tr class="total-row"><td colspan="2" style="text-align:center;font-weight:bold;text-transform:uppercase;">Tổng cộng</td><td style="font-weight:bold;color:var(--primary);">${fmt(filtered.reduce((sum, e) => sum + (e.amount || 0), 0))}</td></tr>`
+              : `<tr><td colspan="3" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu ngoài giờ.</td></tr>`
+            }
+          </tbody>
         </table>
       </div>
     </div>

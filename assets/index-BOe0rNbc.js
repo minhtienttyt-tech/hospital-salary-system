@@ -193,7 +193,9 @@
       <div class="table-container" style="max-height:650px;">
         <table class="salary-detail-table">
           <thead><tr><th>STT</th><th>Họ tên</th><th>Tổng lĩnh</th></tr></thead>
-          <tbody>${e.map((e,t)=>`<tr><td>${t+1}</td><td>${e.name}</td><td>${O(e.amount)}</td></tr>`).join(``)}</tbody>
+          <tbody>
+            ${e.length>0?e.map((e,t)=>`<tr><td>${t+1}</td><td>${e.name}</td><td>${O(e.amount)}</td></tr>`).join(``)+`<tr class="total-row"><td colspan="2" style="text-align:center;font-weight:bold;text-transform:uppercase;">Tổng cộng</td><td style="font-weight:bold;color:var(--primary);">${O(e.reduce((e,t)=>e+(t.amount||0),0))}</td></tr>`:`<tr><td colspan="3" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu ngoài giờ.</td></tr>`}
+          </tbody>
         </table>
       </div>
     </div>
