@@ -390,46 +390,71 @@ const SalaryTable = () => {
   </div>`;
 };
 
-const PITModule = () => {
-  const moneyHeaders = ['Lương chính', 'PC vượt khung', 'PC Khu vực', 'PC Chức vụ', 'PC Trách nhiệm', 'PC ưu đãi ngành', 'PC Độc hại', 'PC cấp ủy', 'Tổng cộng lương', 'Khấu trừ 10,5% BH', 'KT 10,5% BH CV', 'KT 10,5% BH VK', 'Trừ ốm LC', 'Trừ ốm VK', 'Trừ ốm CV', 'Trừ ốm TN', 'Trừ ốm ƯĐ', 'Trừ ốm ĐH', 'Tổng lĩnh'];
+function aggregatePITData(quarter) {
   const all = {};
-  Object.entries(salaryData).forEach(([month, data]) => {
-    if(!Array.isArray(data)) return;
+  const allMonths = [...new Set([...Object.keys(salaryData), ...Object.keys(overtimeData), ...Object.keys(bonusData)])];
+
+  allMonths.forEach(month => {
     const m = parseInt(month.split('/')[0]);
+    if (isNaN(m)) return;
     const q = m <= 3 ? '1' : (m <= 6 ? '2' : (m <= 9 ? '3' : '4'));
-    if (selectedPITQuarter !== 'all' && selectedPITQuarter !== q) return;
-    data.filter(isRealEmployee).forEach(e => {
-      if (!all[e.name]) {
-        all[e.name] = { 
-          name: e.name, dept: e.department, monthsInPeriod: 0,
+    if (quarter !== 'all' && quarter !== q) return;
+
+    const empsInMonth = {};
+    const processEmp = (e) => {
+      if (e && e.name && isRealEmployee(e)) {
+        const cleanName = e.name.replace(/\s+/g, ' ').trim();
+        if (!empsInMonth[cleanName]) empsInMonth[cleanName] = { name: cleanName, dept: e.department || e.dept || '' };
+      }
+    };
+    (salaryData[month] || []).forEach(processEmp);
+    (overtimeData[month] || []).forEach(processEmp);
+    (bonusData[month] || []).forEach(processEmp);
+
+    Object.values(empsInMonth).forEach(empInfo => {
+      const name = empInfo.name;
+      if (!all[name]) {
+        all[name] = { 
+          name: name, dept: empInfo.dept, monthsInPeriod: 0,
           rawAmounts: Array(19).fill(0),
-          otAmount: 0,
-          bonusAmount: 0,
-          nq20Amount: 0,
-          numDependents: (dependentOverrides[e.name] !== undefined) ? dependentOverrides[e.name] : (e.numDependents || 0)
+          otAmount: 0, bonusAmount: 0,
+          numDependents: (dependentOverrides[name] !== undefined) ? dependentOverrides[name] : 0
         };
       }
-      all[e.name].monthsInPeriod += 1;
-      if(e.rawAmounts) e.rawAmounts.forEach((val, i) => all[e.name].rawAmounts[i] = (all[e.name].rawAmounts[i] || 0) + (val || 0));
-      const otMonthData = overtimeData[month] || [];
-      const otEntry = otMonthData.find(ot => ot.name === e.name);
-      all[e.name].otAmount += otEntry ? otEntry.amount : 0;
-      const bnMonthData = bonusData[month] || [];
-      const bnEntry = bnMonthData.find(bn => bn.name === e.name);
-      all[e.name].bonusAmount += bnEntry ? bnEntry.amount : 0;
-      const nq20MonthData = nq20Data[month] || [];
-      const nq20Entry = nq20MonthData.find(n => n.name === e.name);
-      all[e.name].nq20Amount += nq20Entry ? nq20Entry.amount : 0;
+      all[name].monthsInPeriod += 1;
+
+      const normalize = n => (n||'').replace(/\s+/g, ' ').trim().toLowerCase();
+      const nName = normalize(name);
+
+      const salEntry = (salaryData[month] || []).find(s => normalize(s.name) === nName);
+      if (salEntry && salEntry.rawAmounts) {
+        salEntry.rawAmounts.forEach((val, i) => all[name].rawAmounts[i] = (all[name].rawAmounts[i] || 0) + (val || 0));
+        if (dependentOverrides[name] === undefined && salEntry.numDependents) {
+          all[name].numDependents = Math.max(all[name].numDependents, salEntry.numDependents);
+        }
+      }
+
+      const otEntry = (overtimeData[month] || []).find(ot => normalize(ot.name) === nName);
+      all[name].otAmount += otEntry ? otEntry.amount : 0;
+
+      const bnEntry = (bonusData[month] || []).find(bn => normalize(bn.name) === nName);
+      all[name].bonusAmount += bnEntry ? bnEntry.amount : 0;
     });
   });
-  const list = Object.values(all).map(e => {
-    const gross_taxable = e.rawAmounts[8] + e.otAmount + e.bonusAmount + e.nq20Amount; 
+
+  return Object.values(all).map(e => {
+    const gross_taxable = e.rawAmounts[8] + e.otAmount + e.bonusAmount; 
     const gt_bt = e.monthsInPeriod * GT_BAN_THAN;
     const gt_npt = e.monthsInPeriod * (e.numDependents * GT_PHU_THUOC);
     const insurance = (e.rawAmounts[9] || 0) + (e.rawAmounts[10] || 0) + (e.rawAmounts[11] || 0);
     const taxable = gross_taxable - insurance - gt_bt - gt_npt;
-    return { ...e, gross_taxable, gt_bt, gt_npt, taxable, insurance };
+    return { ...e, months: e.monthsInPeriod, gross_taxable, gt_bt, gt_npt, taxable, insurance };
   }).sort((a, b) => b.taxable - a.taxable);
+}
+
+const PITModule = () => {
+  const moneyHeaders = ['Lương chính', 'PC vượt khung', 'PC Khu vực', 'PC Chức vụ', 'PC Trách nhiệm', 'PC ưu đãi ngành', 'PC Độc hại', 'PC cấp ủy', 'Tổng cộng lương', 'Khấu trừ 10,5% BH', 'KT 10,5% BH CV', 'KT 10,5% BH VK', 'Trừ ốm LC', 'Trừ ốm VK', 'Trừ ốm CV', 'Trừ ốm TN', 'Trừ ốm ƯĐ', 'Trừ ốm ĐH', 'Tổng lĩnh'];
+  const list = aggregatePITData(selectedPITQuarter);
   const filtered = searchFilter ? list.filter(e => e.name.toLowerCase().includes(searchFilter.toLowerCase())) : list;
   const qTitle = selectedPITQuarter === 'all' ? 'Cả năm' : `Quý ${selectedPITQuarter}`;
   return `
@@ -456,7 +481,6 @@ const PITModule = () => {
               ${moneyHeaders.map((h, i) => `<th class="${i===8?'highlight-total':(i===18?'highlight-col':'')}">${h}</th>`).join('')}
               <th style="background:rgba(14, 165, 233, 0.1);">Ngoài giờ</th>
               <th style="background:rgba(14, 165, 233, 0.1);">Thưởng</th>
-              <th style="background:rgba(14, 165, 233, 0.1);">NQ20</th>
               <th class="highlight-col">TN TÍNH THUẾ</th>
               <th>Số NPT</th>
             </tr>
@@ -469,7 +493,6 @@ const PITModule = () => {
               ${e.rawAmounts.map((v, i) => `<td class="${i===8?'highlight-total':(i===18?'highlight-col':'')}">${fmt(v)}</td>`).join('')}
               <td style="background:rgba(14, 165, 233, 0.05);">${fmt(e.otAmount)}</td>
               <td style="background:rgba(14, 165, 233, 0.05);">${fmt(e.bonusAmount)}</td>
-              <td style="background:rgba(14, 165, 233, 0.05);">${fmt(e.nq20Amount)}</td>
               <td class="highlight-col" style="font-weight:700;color:var(--primary);">${fmt(e.taxable > 0 ? e.taxable : 0)}</td>
               <td><input type="number" class="select-input npt-input" data-name="${e.name}" value="${e.numDependents}" style="width:50px;text-align:center;padding:2px;"></td>
             </tr>`).join('')}
@@ -1808,49 +1831,8 @@ window.exportPITToExcel = function() {
     const qTitle = selectedPITQuarter === 'all' ? 'Cả năm' : `Quý ${selectedPITQuarter}`;
     const moneyHeaders = ['Lương chính', 'PC vượt khung', 'PC Khu vực', 'PC Chức vụ', 'PC Trách nhiệm', 'PC ưu đãi ngành', 'PC Độc hại', 'PC cấp ủy', 'Tổng cộng lương', 'Khấu trừ 10,5% BH', 'KT 10,5% BH CV', 'KT 10,5% BH VK', 'Trừ ốm LC', 'Trừ ốm VK', 'Trừ ốm CV', 'Trừ ốm TN', 'Trừ ốm ƯĐ', 'Trừ ốm ĐH', 'Tổng lĩnh'];
 
-    const all = {};
-    Object.entries(salaryData).forEach(([month, data]) => {
-      if(!Array.isArray(data)) return;
-      const m = parseInt(month.split('/')[0]);
-      const q = m <= 3 ? '1' : (m <= 6 ? '2' : (m <= 9 ? '3' : '4'));
-      if (selectedPITQuarter !== 'all' && selectedPITQuarter !== q) return;
-
-      data.filter(isRealEmployee).forEach(e => {
-        if (!all[e.name]) {
-          all[e.name] = { 
-            name: e.name, dept: e.department, months: 0,
-            rawAmounts: Array(19).fill(0),
-            otAmount: 0,
-            bonusAmount: 0,
-            nq20Amount: 0,
-            numDependents: (dependentOverrides[e.name] !== undefined) ? dependentOverrides[e.name] : (e.numDependents || 0)
-          };
-        }
-        all[e.name].months += 1;
-        if(e.rawAmounts) {
-          e.rawAmounts.forEach((v, i) => all[e.name].rawAmounts[i] += (v || 0));
-        }
-        const otMonthData = overtimeData[month] || [];
-        const otEntry = otMonthData.find(ot => ot.name === e.name);
-        all[e.name].otAmount += otEntry ? otEntry.amount : 0;
-        
-        const bnMonthData = bonusData[month] || [];
-        const bnEntry = bnMonthData.find(bn => bn.name === e.name);
-        all[e.name].bonusAmount += bnEntry ? bnEntry.amount : 0;
-        
-        const nq20MonthData = nq20Data[month] || [];
-        const nq20Entry = nq20MonthData.find(n => n.name === e.name);
-        all[e.name].nq20Amount += nq20Entry ? nq20Entry.amount : 0;
-      });
-    });
-
-    const data = Object.values(all).map(e => {
-      const gross_taxable = e.rawAmounts[8] + e.otAmount + e.bonusAmount + e.nq20Amount;
-      const insurance = (e.rawAmounts[9] || 0) + (e.rawAmounts[10] || 0) + (e.rawAmounts[11] || 0);
-      const gt_bt = e.months * GT_BAN_THAN;
-      const gt_npt = e.months * (e.numDependents * GT_PHU_THUOC);
-      const taxable = gross_taxable - insurance - gt_bt - gt_npt;
-      
+    const all = aggregatePITData(selectedPITQuarter);
+    const data = all.map(e => {
       const row = {
         'Họ và tên': e.name,
         'Khoa/Phòng': e.dept,
@@ -1859,8 +1841,7 @@ window.exportPITToExcel = function() {
       moneyHeaders.forEach((h, i) => row[h] = e.rawAmounts[i]);
       row['Ngoài giờ'] = e.otAmount;
       row['Khen thưởng'] = e.bonusAmount;
-      row['Đãi ngộ NQ20'] = e.nq20Amount;
-      row['THU NHẬP TÍNH THUẾ'] = taxable > 0 ? taxable : 0;
+      row['THU NHẬP TÍNH THUẾ'] = e.taxable > 0 ? e.taxable : 0;
       return row;
     });
 
@@ -2137,30 +2118,7 @@ window.showReportPreview = function(type) {
     
     const moneyHeaders = ['Lương chính', 'PC vượt khung', 'PC Khu vực', 'PC Chức vụ', 'PC Trách nhiệm', 'PC ưu đãi ngành', 'PC Độc hại', 'PC cấp ủy', 'Tổng lương', 'BH 10.5%', 'BH CV', 'BH VK', 'Trừ ốm LC', 'Trừ ốm VK', 'Trừ ốm CV', 'Trừ ốm TN', 'Trừ ốm ƯĐ', 'Trừ ốm ĐH', 'Thực lĩnh'];
     
-    const all = {};
-    Object.entries(salaryData).forEach(([month, data]) => {
-      const m = parseInt(month.split('/')[0]);
-      const q = m <= 3 ? '1' : (m <= 6 ? '2' : (m <= 9 ? '3' : '4'));
-      if (selectedPITQuarter !== 'all' && selectedPITQuarter !== q) return;
-      data.filter(isRealEmployee).forEach(e => {
-        if (!all[e.name]) all[e.name] = { name: e.name, dept: e.department, months: 0, rawAmounts: Array(19).fill(0), otAmount: 0, bonusAmount: 0, nq20Amount: 0 };
-        all[e.name].months++;
-        if(e.rawAmounts) e.rawAmounts.forEach((v, i) => all[e.name].rawAmounts[i] += (v || 0));
-        
-        const otMonthData = overtimeData[month] || [];
-        const otEntry = otMonthData.find(ot => ot.name === e.name);
-        all[e.name].otAmount += otEntry ? otEntry.amount : 0;
-        
-        const bnMonthData = bonusData[month] || [];
-        const bnEntry = bnMonthData.find(bn => bn.name === e.name);
-        all[e.name].bonusAmount += bnEntry ? bnEntry.amount : 0;
-
-        const nq20MonthData = nq20Data[month] || [];
-        const nq20Entry = nq20MonthData.find(n => n.name === e.name);
-        all[e.name].nq20Amount += nq20Entry ? nq20Entry.amount : 0;
-      });
-    });
-    const emps = Object.values(all);
+    const emps = aggregatePITData(selectedPITQuarter);
 
     tableHTML = `
       <table class="report-table">
@@ -2170,23 +2128,17 @@ window.showReportPreview = function(type) {
             ${moneyHeaders.slice(0, 9).map(h => `<th>${h}</th>`).join('')}
             <th>Ngoài giờ</th>
             <th>Thưởng</th>
-            <th>NQ20</th>
             <th>Thu nhập tính thuế</th>
           </tr>
         </thead>
         <tbody>
           ${emps.map(e => {
-            const gross = e.rawAmounts[8] + e.otAmount + e.bonusAmount + e.nq20Amount;
-            const ins = (e.rawAmounts[9]||0) + (e.rawAmounts[10]||0) + (e.rawAmounts[11]||0);
-            const npt = (dependentOverrides[e.name] || 0);
-            const taxable = gross - ins - (e.months * (GT_BAN_THAN + npt * GT_PHU_THUOC));
             return `<tr>
               <td>${e.name}</td><td>${e.dept}</td>
               ${e.rawAmounts.slice(0, 9).map(v => `<td>${fmt(v)}</td>`).join('')}
               <td>${fmt(e.otAmount)}</td>
               <td>${fmt(e.bonusAmount)}</td>
-              <td>${fmt(e.nq20Amount)}</td>
-              <td>${fmt(taxable > 0 ? taxable : 0)}</td>
+              <td>${fmt(e.taxable > 0 ? e.taxable : 0)}</td>
             </tr>`;
           }).join('')}
         </tbody>
