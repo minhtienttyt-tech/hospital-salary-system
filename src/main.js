@@ -750,13 +750,38 @@ const NQ20Module = () => {
 
 function processOvertimeCSV(text) {
   const rows = Papa.parse(text, { skipEmptyLines: true }).data;
+  if (rows.length < 2) return [];
+
+  let hIdx = rows.findIndex(r => r.some(c => c && (c.toString().toLowerCase().includes('họ và tên') || c.toString().toLowerCase().includes('họ tên') || c.toString().toLowerCase() === 'họ tên')));
+  if (hIdx === -1) hIdx = 0;
+
+  const combinedHeaders = Array(rows[hIdx].length).fill('');
+  for (let i = 0; i <= hIdx; i++) {
+    rows[i].forEach((cell, cellIdx) => {
+      if (cell) combinedHeaders[cellIdx] += ' ' + cell.toString().toLowerCase();
+    });
+  }
+
+  let nameIdx = combinedHeaders.findIndex(h => h.includes('họ và tên') || h.includes('họ tên'));
+  let amtIdx = combinedHeaders.findIndex(h => h.includes('thực lĩnh') || h.includes('tổng số') || h.includes('số tiền') || h.includes('thành tiền'));
+  
+  if (amtIdx === -1) amtIdx = 10;
+  if (nameIdx === -1) nameIdx = 1;
+
   const result = [];
-  for (let i = 1; i < rows.length; i++) {
+  for (let i = hIdx + 1; i < rows.length; i++) {
     const row = rows[i];
-    if (row.some(c => c && (c.toString().toLowerCase().includes('tổng cộng') || c.toString().toLowerCase() === 'cộng'))) break;
-    if (!row[1]) continue;
-    const name = row[1].trim();
-    result.push({ name: name, amount: parseVNNumber(row[10] || row[20]) });
+    if (row.some(c => c && (c.toString().toLowerCase().includes('tổng cộng') || c.toString().toLowerCase() === 'cộng' || c.toString().toLowerCase().includes('tổng số tiền')))) break;
+    
+    const name = row[nameIdx]?.toString().trim();
+    if (!name || name === '' || /^[IVXLCDM]+\./.test(name)) continue;
+    
+    if (row[0] && /^[IVXLCDM]+$/.test(row[0].toString().trim())) continue;
+    if (name.split(' ').length < 2 && isNaN(name) === false) continue;
+    if (name.toLowerCase().includes('tổng số') || name.toLowerCase().includes('tài khoản')) continue;
+
+    const amount = parseVNNumber(row[amtIdx]) || parseVNNumber(row[10]) || parseVNNumber(row[20]);
+    result.push({ name: name, amount: amount });
   }
   return result;
 }
