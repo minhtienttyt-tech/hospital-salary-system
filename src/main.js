@@ -36,6 +36,26 @@ try {
   nq20Data = JSON.parse(localStorage.getItem('hospital_nq20_data')) || {};
   salaryHeaders = JSON.parse(localStorage.getItem('hospital_salary_headers')) || [];
   dependentOverrides = JSON.parse(localStorage.getItem('hospital_dependent_overrides')) || {};
+
+  // Tự động dọn dẹp các đuôi (KT), (KB) còn sót lại trong localStorage cũ
+  let changed = false;
+  [overtimeData, bonusData, nq20Data].forEach(obj => {
+    Object.values(obj).forEach(arr => {
+      if (Array.isArray(arr)) {
+        arr.forEach(e => {
+          if (e && e.name && /\([^)]+\)$/.test(e.name.trim())) {
+            e.name = e.name.replace(/\s*\([^)]+\)\s*$/, '');
+            changed = true;
+          }
+        });
+      }
+    });
+  });
+  if (changed) {
+    localStorage.setItem('hospital_overtime_data', JSON.stringify(overtimeData));
+    localStorage.setItem('hospital_bonus_data', JSON.stringify(bonusData));
+    localStorage.setItem('hospital_nq20_data', JSON.stringify(nq20Data));
+  }
 } catch (e) {
   salaryData = {}; overtimeData = {}; bonusData = {}; nq20Data = {}; salaryHeaders = []; dependentOverrides = {};
 }
@@ -210,11 +230,14 @@ function processBonusCSV(text) {
   for (let i = hIdx + 1; i < rows.length; i++) {
     const row = rows[i];
     if (row.some(c => c && (c.toString().toLowerCase().includes('tổng cộng') || c.toString().toLowerCase() === 'cộng'))) break;
-    const name = row[nameIdx]?.toString().trim();
+    let name = row[nameIdx]?.toString().trim();
     if (!name || name === '' || /^[IVXLCDM]+\./.test(name)) continue;
     
     // Kiểm tra hàng rác (ví dụ hàng chỉ có số thứ tự cột)
     if (name.split(' ').length < 2 && isNaN(name) === false) continue;
+
+    // Bỏ hậu tố phòng ban trong ngoặc, vd: Lê Thị Lan (KT) -> Lê Thị Lan
+    name = name.replace(/\s*\([^)]+\)\s*$/, '');
 
     result.push({
       name: name,
@@ -418,7 +441,8 @@ function aggregatePITData(quarter) {
           name: name, dept: empInfo.dept, monthsInPeriod: 0,
           rawAmounts: Array(19).fill(0),
           otAmount: 0, bonusAmount: 0,
-          numDependents: (dependentOverrides[name] !== undefined) ? dependentOverrides[name] : 0
+          numDependents: (dependentOverrides[name] !== undefined) ? dependentOverrides[name] : 0,
+          id: 0
         };
       }
       all[name].monthsInPeriod += 1;
@@ -428,6 +452,7 @@ function aggregatePITData(quarter) {
 
       const salEntry = (salaryData[month] || []).find(s => normalize(s.name) === nName);
       if (salEntry && salEntry.rawAmounts) {
+        if (salEntry.id) all[name].id = parseInt(salEntry.id) || all[name].id;
         salEntry.rawAmounts.forEach((val, i) => all[name].rawAmounts[i] = (all[name].rawAmounts[i] || 0) + (val || 0));
         if (dependentOverrides[name] === undefined && salEntry.numDependents) {
           all[name].numDependents = Math.max(all[name].numDependents, salEntry.numDependents);
@@ -449,7 +474,7 @@ function aggregatePITData(quarter) {
     const insurance = (e.rawAmounts[9] || 0) + (e.rawAmounts[10] || 0) + (e.rawAmounts[11] || 0);
     const taxable = gross_taxable - insurance - gt_bt - gt_npt;
     return { ...e, months: e.monthsInPeriod, gross_taxable, gt_bt, gt_npt, taxable, insurance };
-  }).sort((a, b) => b.taxable - a.taxable);
+  }).sort((a, b) => (a.id || 999999) - (b.id || 999999));
 }
 
 const PITModule = () => {
@@ -626,7 +651,7 @@ const NQ20Module = () => {
     filtered = searchFilter ? agg.filter(e => e.name.toLowerCase().includes(searchFilter.toLowerCase())) : agg;
     title = 'Tổng hợp Đãi ngộ NQ20 ' + (summaryPeriod === 'all' ? 'Cả năm' : 'Quý ' + summaryPeriod[1]);
   }
-  const months = sortMonthsDesc(Object.keys(salaryData));
+  const months = sortMonthsDesc([...new Set([...Object.keys(salaryData), ...Object.keys(nq20Data)])]);
   
   return `
   <div class="fade-in">
@@ -779,12 +804,15 @@ function processOvertimeCSV(text) {
     const row = rows[i];
     if (row.some(c => c && (c.toString().toLowerCase().includes('tổng cộng') || c.toString().toLowerCase() === 'cộng' || c.toString().toLowerCase().includes('tổng số tiền')))) break;
     
-    const name = row[nameIdx]?.toString().trim();
+    let name = row[nameIdx]?.toString().trim();
     if (!name || name === '' || /^[IVXLCDM]+\./.test(name)) continue;
     
     if (row[0] && /^[IVXLCDM]+$/.test(row[0].toString().trim())) continue;
     if (name.split(' ').length < 2 && isNaN(name) === false) continue;
     if (name.toLowerCase().includes('tổng số') || name.toLowerCase().includes('tài khoản')) continue;
+
+    // Bỏ hậu tố phòng ban trong ngoặc, vd: Lê Thị Lan (KT) -> Lê Thị Lan
+    name = name.replace(/\s*\([^)]+\)\s*$/, '');
 
     const amount = parseVNNumber(row[amtIdx]) || parseVNNumber(row[10]) || parseVNNumber(row[20]);
     result.push({ name: name, amount: amount });
@@ -821,9 +849,12 @@ function processNQ20CSV(text) {
   for (let i = hIdx + 1; i < rows.length; i++) {
     const row = rows[i];
     if (row.some(c => c && (c.toString().toLowerCase().includes('tổng cộng') || c.toString().toLowerCase() === 'cộng'))) break;
-    const name = row[nameIdx]?.toString().trim();
+    let name = row[nameIdx]?.toString().trim();
     if (!name || name === '' || /^[IVXLCDM]+\./.test(name)) continue;
     if (name.split(' ').length < 2 && isNaN(name) === false) continue;
+
+    // Bỏ hậu tố phòng ban trong ngoặc
+    name = name.replace(/\s*\([^)]+\)\s*$/, '');
 
     const amount = amtIdx !== -1 ? parseVNNumber(row[amtIdx]) : 0;
     const monthsVal = monthsIdx !== -1 ? parseVNNumber(row[monthsIdx]) : 1;
