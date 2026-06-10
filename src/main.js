@@ -1324,68 +1324,194 @@ const BudgetPromotionTab = () => {
     const val = yearData[empName]?.[key] || '';
     if (key === 'job_title') {
       return `<select class="select-input" style="width:100%; min-width:180px; font-size:0.8rem; border:none; background:transparent;" onchange="window.updateBudgetPromotion('${empName}', 'job_title', this.value)">
-        <option value="">-- Chọn chức danh --</option>
+        <option value="">-- Chọn --</option>
         ${JOB_TITLES.map(j => `<option value="${j.name}" ${val === j.name ? 'selected' : ''}>${j.name}</option>`).join('')}
       </select>`;
     }
     if (key === 'promotion_type') {
-      return `<select class="select-input" style="width:100%; min-width:180px; font-size:0.8rem; border:none; background:transparent;" onchange="window.updateBudgetPromotion('${empName}', 'promotion_type', this.value)">
-        <option value="">-- Chọn hình thức --</option>
+      return `<select class="select-input" style="width:100%; min-width:120px; font-size:0.8rem; border:none; background:transparent;" onchange="window.updateBudgetPromotion('${empName}', 'promotion_type', this.value)">
+        <option value="">-- Chọn --</option>
         ${PROMOTION_TYPES.map(p => `<option value="${p}" ${val === p ? 'selected' : ''}>${p}</option>`).join('')}
       </select>`;
     }
     return `<input type="${type}" class="select-input" style="width:100%; font-size:0.8rem; border:none; background:transparent; text-align:${type==='number'?'center':'left'};" placeholder="${placeholder}" value="${val}" onchange="window.updateBudgetPromotion('${empName}', '${key}', this.value)">`;
   };
 
+  const ff = (v) => v ? v.toFixed(3).replace('.',',') : '';
+
+  let totals = {
+    lc_tt: 0, vk_tt: 0, ud56_tt: 0, ud76_tt: 0, th70_tt: 0, tong_cong: 0, khau_tru: 0, thuc_linh: 0
+  };
+
   const tbody = emps.map((e, idx) => {
     const empData = yearData[e.name] || {};
-    const curLevel = empData.current_level || '';
-    const curCoef = empData.current_coef || e.coefficients?.base || '';
     
+    // User inputs
+    const curCoef = empData.hh_he_so !== undefined ? empData.hh_he_so : (e.coefficients?.base || 0);
+    let curVk = empData.hh_vk !== undefined ? empData.hh_vk : 0;
+    if (empData.hh_vk === undefined && e.coefficients?.vkhung) {
+      curVk = (e.coefficients.vkhung / (e.coefficients.base || 1)) * 100;
+    }
+    
+    const newCoef = empData.nb_he_so || 0;
+    const newVk = empData.nb_vk || 0;
+    const soThang = empData.so_thang || 0;
+    
+    // Percentages
+    const ud56_pct = empData.ud56_pct !== undefined ? empData.ud56_pct : (e.coefficients?.incentive ? e.coefficients.incentive * 100 : 0);
+    const ud76_pct = empData.ud76_pct || 0;
+    const th70_pct = empData.th70_pct || 0;
+    
+    // Calculations
+    const cl_hs = Math.max(0, newCoef - curCoef);
+    const cl_tnvk = Math.max(0, (newCoef * newVk / 100) - (curCoef * curVk / 100));
+    
+    const lc_hs = cl_hs * soThang;
+    const lc_tt = Math.round(lc_hs * budgetBaseSalary);
+    
+    const vk_hs = cl_tnvk * soThang;
+    const vk_tt = Math.round(vk_hs * budgetBaseSalary);
+    
+    const ud56_hs = (lc_hs + vk_hs) * ud56_pct / 100;
+    const ud56_tt = Math.round(ud56_hs * budgetBaseSalary);
+    
+    const ud76_hs = (lc_hs + vk_hs) * ud76_pct / 100;
+    const ud76_tt = Math.round(ud76_hs * budgetBaseSalary);
+    
+    const th70_hs = (lc_hs + vk_hs) * th70_pct / 100;
+    const th70_tt = Math.round(th70_hs * budgetBaseSalary);
+    
+    const tong_cong = lc_tt + vk_tt + ud56_tt + ud76_tt + th70_tt;
+    const khau_tru = Math.round((lc_tt + vk_tt) * 0.105);
+    const thuc_linh = tong_cong - khau_tru;
+
+    totals.lc_tt += lc_tt; totals.vk_tt += vk_tt; totals.ud56_tt += ud56_tt; totals.ud76_tt += ud76_tt;
+    totals.th70_tt += th70_tt; totals.tong_cong += tong_cong; totals.khau_tru += khau_tru; totals.thuc_linh += thuc_linh;
+
     return `<tr>
-      <td style="text-align:center;">${idx+1}</td>
-      <td style="font-weight:600;">${e.name}</td>
-      <td style="padding:0;">${inpt(e.name, 'promotion_type')}</td>
-      <td style="padding:0;">${inpt(e.name, 'job_title')}</td>
-      <td style="text-align:center;">${empData.job_code || ''}</td>
-      <td style="padding:0;">${inpt(e.name, 'current_level')}</td>
-      <td style="padding:0;"><input type="text" class="select-input" style="width:100%; font-size:0.8rem; border:none; background:transparent; text-align:center;" value="${curCoef}" onchange="window.updateBudgetPromotion('${e.name}', 'current_coef', this.value)"></td>
-      <td style="padding:0;">${inpt(e.name, 'new_level')}</td>
-      <td style="padding:0;">${inpt(e.name, 'new_coef')}</td>
-      <td style="padding:0;">${inpt(e.name, 'new_vk')}</td>
-      <td style="padding:0;">${inpt(e.name, 'time')}</td>
+      <td class="sticky-col" style="text-align:center; left:0; width:40px; background:var(--card-bg); z-index:20;">${idx+1}</td>
+      <td class="sticky-col" style="padding:0; left:40px; width:150px; background:var(--card-bg); z-index:20; border-right:1px solid var(--border-color);">${inpt(e.name, 'promotion_type')}</td>
+      <td class="sticky-col" style="font-weight:600; left:190px; width:160px; background:var(--card-bg); z-index:20;">${e.name}</td>
+      <td class="sticky-col" style="padding:0; left:350px; width:180px; background:var(--card-bg); z-index:20; border-right:2px solid var(--border-color);">${inpt(e.name, 'job_title')}</td>
+      
+      <td style="text-align:center; font-weight:bold; color:var(--primary);">${empData.job_code || ''}</td>
+      <td style="padding:0;">${inpt(e.name, 'hh_bac')}</td>
+      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center;" value="${curCoef}" onchange="window.updateBudgetPromotion('${e.name}', 'hh_he_so', parseFloat(this.value)||0)"></td>
+      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center;" value="${curVk}" onchange="window.updateBudgetPromotion('${e.name}', 'hh_vk', parseFloat(this.value)||0)"></td>
+      
+      <td style="padding:0;">${inpt(e.name, 'nb_bac')}</td>
+      <td style="padding:0;">${inpt(e.name, 'nb_date')}</td>
+      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center; color:var(--primary); font-weight:bold;" value="${newCoef}" onchange="window.updateBudgetPromotion('${e.name}', 'nb_he_so', parseFloat(this.value)||0)"></td>
+      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center;" value="${newVk}" onchange="window.updateBudgetPromotion('${e.name}', 'nb_vk', parseFloat(this.value)||0)"></td>
+      
+      <td style="text-align:center; font-weight:600; background:#f8fafc;">${ff(cl_hs)}</td>
+      <td style="text-align:center; font-weight:600; background:#f8fafc;">${ff(cl_tnvk)}</td>
+      
+      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:#eff6ff; text-align:center; font-weight:bold; color:var(--primary);" value="${soThang}" onchange="window.updateBudgetPromotion('${e.name}', 'so_thang', parseFloat(this.value)||0)"></td>
+      
+      <td style="text-align:center;">${ff(lc_hs)}</td>
+      <td style="text-align:right;">${fmt(lc_tt)}</td>
+      
+      <td style="text-align:center;">${ff(vk_hs)}</td>
+      <td style="text-align:right;">${fmt(vk_tt)}</td>
+      
+      <td style="padding:0; text-align:center;">
+        <input type="number" class="select-input" style="width:40px; border:none; background:transparent; text-align:center; padding:0;" value="${ud56_pct}" onchange="window.updateBudgetPromotion('${e.name}', 'ud56_pct', parseFloat(this.value)||0)">%<br>
+        <span style="font-size:0.75rem; color:var(--text-muted);">${ff(ud56_hs)}</span>
+      </td>
+      <td style="text-align:right;">${fmt(ud56_tt)}</td>
+      
+      <td style="padding:0; text-align:center;">
+        <input type="number" class="select-input" style="width:40px; border:none; background:transparent; text-align:center; padding:0;" value="${ud76_pct}" onchange="window.updateBudgetPromotion('${e.name}', 'ud76_pct', parseFloat(this.value)||0)">%<br>
+        <span style="font-size:0.75rem; color:var(--text-muted);">${ff(ud76_hs)}</span>
+      </td>
+      <td style="text-align:right;">${fmt(ud76_tt)}</td>
+      
+      <td style="padding:0; text-align:center;">
+        <input type="number" class="select-input" style="width:40px; border:none; background:transparent; text-align:center; padding:0;" value="${th70_pct}" onchange="window.updateBudgetPromotion('${e.name}', 'th70_pct', parseFloat(this.value)||0)">%<br>
+        <span style="font-size:0.75rem; color:var(--text-muted);">${ff(th70_hs)}</span>
+      </td>
+      <td style="text-align:right;">${fmt(th70_tt)}</td>
+      
+      <td class="highlight-total" style="text-align:right;">${fmt(tong_cong)}</td>
+      <td style="text-align:right; color:var(--danger); font-weight:600;">${fmt(khau_tru)}</td>
+      <td class="highlight-total" style="text-align:right; color:var(--primary);">${fmt(thuc_linh)}</td>
       <td style="padding:0;">${inpt(e.name, 'note')}</td>
     </tr>`;
   }).join('');
 
   return `
     <div style="padding: 1rem 0;">
-      <h3 style="text-align:center; font-weight:700;">DANH SÁCH DỰ KIẾN NÂNG LƯƠNG TRONG NĂM ${budgetYear}</h3>
-      <div class="table-container" style="margin-top:1rem; overflow-x:auto;">
-        <table class="salary-detail-table" style="min-width: 1400px; font-size: 0.8rem;">
-          <thead>
+      <h3 style="text-align:center; font-weight:700;">BẢNG THANH TOÁN TRUY LĨNH NÂNG LƯƠNG NĂM ${budgetYear}</h3>
+      <div style="text-align:right; margin-bottom: 0.5rem;"><button class="btn btn-secondary" onclick="window.exportPromotionToExcel()"><i data-lucide="download" size="16"></i> Xuất Excel</button></div>
+      <div class="table-container" style="overflow-x:auto; max-height:650px;">
+        <table class="salary-detail-table" style="min-width: 2500px; font-size: 0.8rem; border-collapse: separate; border-spacing: 0;">
+          <thead style="position: sticky; top: 0; z-index: 30;">
             <tr>
-              <th rowspan="2" style="width:40px; text-align:center;">STT</th>
-              <th rowspan="2" style="width:150px;">Họ và tên</th>
-              <th rowspan="2" style="width:200px;">Nâng lương</th>
-              <th rowspan="2" style="width:200px;">Chức danh nghề nghiệp</th>
+              <th rowspan="2" class="sticky-col" style="width:40px; text-align:center; left:0; z-index:40;">TT</th>
+              <th rowspan="2" class="sticky-col" style="width:150px; text-align:center; left:40px; z-index:40; border-right:1px solid #cbd5e1;">Nâng lương</th>
+              <th rowspan="2" class="sticky-col" style="width:160px; left:190px; z-index:40;">Họ và tên</th>
+              <th rowspan="2" class="sticky-col" style="width:180px; text-align:center; left:350px; z-index:40; border-right:2px solid #cbd5e1;">Chức danh nghề nghiệp</th>
               <th rowspan="2" style="width:100px; text-align:center;">Mã ngạch</th>
-              <th colspan="2" style="text-align:center;">Hiện hưởng</th>
-              <th colspan="3" style="text-align:center;">Kết quả nâng bậc</th>
-              <th rowspan="2" style="width:120px; text-align:center;">Thời điểm hưởng</th>
-              <th rowspan="2">Ghi chú</th>
+              <th colspan="3" style="text-align:center;">Hệ số mức lương hiện hưởng</th>
+              <th colspan="4" style="text-align:center;">Kết quả nâng bậc</th>
+              <th colspan="2" style="text-align:center; background:#f8fafc;">Chênh lệch</th>
+              <th rowspan="2" style="width:70px; text-align:center; background:#eff6ff;">Số tháng</th>
+              <th colspan="2" style="text-align:center;">Lương chính</th>
+              <th colspan="2" style="text-align:center;">PC vượt khung</th>
+              <th colspan="2" style="text-align:center;">PC ưu đãi (NĐ56)</th>
+              <th colspan="2" style="text-align:center;">PC ưu đãi (NĐ76)</th>
+              <th colspan="2" style="text-align:center;">PC thu hút 70%</th>
+              <th rowspan="2" style="width:100px; text-align:center;">Tổng cộng</th>
+              <th rowspan="2" style="width:100px; text-align:center;">10,5% phải nộp</th>
+              <th rowspan="2" style="width:100px; text-align:center;">Thực lĩnh</th>
+              <th rowspan="2" style="width:150px; text-align:center;">Ghi chú</th>
             </tr>
             <tr>
-              <th style="width:60px; text-align:center;">Bậc</th>
+              <th style="width:50px; text-align:center;">Bậc</th>
               <th style="width:60px; text-align:center;">Hệ số</th>
-              <th style="width:60px; text-align:center;">Bậc</th>
+              <th style="width:60px; text-align:center;">VK (%)</th>
+              <th style="width:50px; text-align:center;">Bậc</th>
+              <th style="width:90px; text-align:center;">N.T.N.Đ.H</th>
               <th style="width:60px; text-align:center;">Hệ số</th>
               <th style="width:60px; text-align:center;">TNVK (%)</th>
+              <th style="width:60px; text-align:center; background:#f8fafc;">Hệ số</th>
+              <th style="width:60px; text-align:center; background:#f8fafc;">TNVK</th>
+              <th style="width:60px; text-align:center;">Hệ số</th>
+              <th style="width:90px; text-align:center;">Thành tiền</th>
+              <th style="width:60px; text-align:center;">Hệ số</th>
+              <th style="width:90px; text-align:center;">Thành tiền</th>
+              <th style="width:60px; text-align:center;">Hệ số</th>
+              <th style="width:90px; text-align:center;">Thành tiền</th>
+              <th style="width:60px; text-align:center;">Hệ số</th>
+              <th style="width:90px; text-align:center;">Thành tiền</th>
+              <th style="width:60px; text-align:center;">Hệ số</th>
+              <th style="width:90px; text-align:center;">Thành tiền</th>
             </tr>
           </thead>
           <tbody>
-            ${emps.length ? tbody : `<tr><td colspan="12" style="text-align:center; padding: 2rem;">Chưa có dữ liệu. Hãy import Bảng lương chính trước.</td></tr>`}
+            ${emps.length ? tbody : `<tr><td colspan="28" style="text-align:center; padding: 2rem;">Chưa có dữ liệu. Hãy import Bảng lương chính trước.</td></tr>`}
           </tbody>
+          ${emps.length ? `
+          <tfoot>
+            <tr style="font-weight:700; background:var(--card-bg); border-top:2px solid var(--accent);">
+              <td colspan="16" class="sticky-col" style="text-align:right; padding-right:10px; left:0; z-index:20; background:var(--card-bg);">TỔNG CỘNG TRUY LĨNH:</td>
+              <td style="text-align:right; color:var(--primary);">${fmt(totals.lc_tt)}</td>
+              <td></td>
+              <td style="text-align:right; color:var(--primary);">${fmt(totals.vk_tt)}</td>
+              <td></td>
+              <td style="text-align:right; color:var(--primary);">${fmt(totals.ud56_tt)}</td>
+              <td></td>
+              <td style="text-align:right; color:var(--primary);">${fmt(totals.ud76_tt)}</td>
+              <td></td>
+              <td style="text-align:right; color:var(--primary);">${fmt(totals.th70_tt)}</td>
+              <td style="text-align:right; color:var(--primary);">${fmt(totals.tong_cong)}</td>
+              <td style="text-align:right; color:var(--danger);">${fmt(totals.khau_tru)}</td>
+              <td style="text-align:right; color:var(--primary);">${fmt(totals.thuc_linh)}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+          ` : ''}
         </table>
       </div>
     </div>
@@ -1852,6 +1978,10 @@ window.updateBudgetPromotion = (empName, key, value) => {
   
   saveToLocal();
   render();
+};
+
+window.exportPromotionToExcel = function() {
+  alert('Tính năng xuất Excel cho bảng Nâng lương đang được phát triển.');
 };
 
 window.exportBudgetToExcel = function(type) {
