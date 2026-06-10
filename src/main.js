@@ -23,6 +23,7 @@ let budgetYear = 2026;
 let budgetBaseMonth = null; 
 let budgetContractEmployees = new Set();
 let budgetManualInputs = {};
+let budgetPromotionData = {};
 
 // Định mức giảm trừ thuế
 const GT_BAN_THAN = 15500000;
@@ -36,6 +37,7 @@ try {
   nq20Data = JSON.parse(localStorage.getItem('hospital_nq20_data')) || {};
   salaryHeaders = JSON.parse(localStorage.getItem('hospital_salary_headers')) || [];
   dependentOverrides = JSON.parse(localStorage.getItem('hospital_dependent_overrides')) || {};
+  budgetPromotionData = JSON.parse(localStorage.getItem('hospital_budget_promotion_data')) || {};
 
   // Tự động dọn dẹp các đuôi (KT), (KB) còn sót lại trong localStorage cũ
   let changed = false;
@@ -57,7 +59,7 @@ try {
     localStorage.setItem('hospital_nq20_data', JSON.stringify(nq20Data));
   }
 } catch (e) {
-  salaryData = {}; overtimeData = {}; bonusData = {}; nq20Data = {}; salaryHeaders = []; dependentOverrides = {};
+  salaryData = {}; overtimeData = {}; bonusData = {}; nq20Data = {}; salaryHeaders = []; dependentOverrides = {}; budgetPromotionData = {};
 }
 
 function saveToLocal() {
@@ -67,6 +69,7 @@ function saveToLocal() {
   localStorage.setItem('hospital_nq20_data', JSON.stringify(nq20Data));
   localStorage.setItem('hospital_salary_headers', JSON.stringify(salaryHeaders));
   localStorage.setItem('hospital_dependent_overrides', JSON.stringify(dependentOverrides));
+  localStorage.setItem('hospital_budget_promotion_data', JSON.stringify(budgetPromotionData));
 }
 
 window.deleteNQ20Month = function() {
@@ -1282,29 +1285,106 @@ const BudgetTemplateTab = () => {
   `;
 };
 
+const JOB_TITLES = [
+  { name: 'Y sỹ hạng IV', code: 'V.08.03.07' },
+  { name: 'Điều dưỡng hạng IV', code: 'V.08.05.13' },
+  { name: 'Dược sỹ hạng IV', code: 'V.08.08.23' },
+  { name: 'Bác sỹ hạng III', code: 'V.08.01.03' },
+  { name: 'Bác sỹ Y học dự phòng hạng III', code: 'V.08.02.05' },
+  { name: 'Bác sỹ Y học dự phòng hạng II', code: 'V.08.02.04' },
+  { name: 'Hộ sinh hạng IV', code: 'V.08.06.16' },
+  { name: 'Kỹ thuật Y hạng III', code: 'V.08.07.18' },
+  { name: 'Kỹ thuật y hạng IV', code: 'V.08.07.19' },
+  { name: 'Điều dưỡng hạng III', code: 'V.08.05.12' },
+  { name: 'Dược sĩ hạng III', code: 'V.08.08.22' },
+  { name: 'Y tế công cộng hạng III', code: 'V.08.04.10' },
+  { name: 'Dân số viên hạng IV', code: 'V.08.10.29' },
+  { name: 'Kế toán viên', code: 'V.06.031' },
+  { name: 'Nhân viên kỹ thuật', code: '01.007' },
+  { name: 'Tuyên truyền viên chính', code: '17.177' },
+  { name: 'Hộ lý', code: '16.130' },
+  { name: 'Nhân viên phục vụ', code: '1.009' }
+];
+
+const PROMOTION_TYPES = [
+  'Nâng lương thường xuyên',
+  'Nâng lương trước thời hạn',
+  'Bổ nhiệm chức danh nghề nghiệp',
+  'Chuyển chức danh nghề nghiệp',
+  'Thâm niên vượt khung'
+];
+
 const BudgetPromotionTab = () => {
+  const baseMonth = budgetBaseMonth || selectedMonth;
+  const emps = (salaryData[baseMonth] || []).filter(isRealEmployee);
+  if (!budgetPromotionData[budgetYear]) budgetPromotionData[budgetYear] = {};
+  const yearData = budgetPromotionData[budgetYear];
+
+  const inpt = (empName, key, placeholder = '', type = 'text') => {
+    const val = yearData[empName]?.[key] || '';
+    if (key === 'job_title') {
+      return `<select class="select-input" style="width:100%; min-width:180px; font-size:0.8rem; border:none; background:transparent;" onchange="window.updateBudgetPromotion('${empName}', 'job_title', this.value)">
+        <option value="">-- Chọn chức danh --</option>
+        ${JOB_TITLES.map(j => `<option value="${j.name}" ${val === j.name ? 'selected' : ''}>${j.name}</option>`).join('')}
+      </select>`;
+    }
+    if (key === 'promotion_type') {
+      return `<select class="select-input" style="width:100%; min-width:180px; font-size:0.8rem; border:none; background:transparent;" onchange="window.updateBudgetPromotion('${empName}', 'promotion_type', this.value)">
+        <option value="">-- Chọn hình thức --</option>
+        ${PROMOTION_TYPES.map(p => `<option value="${p}" ${val === p ? 'selected' : ''}>${p}</option>`).join('')}
+      </select>`;
+    }
+    return `<input type="${type}" class="select-input" style="width:100%; font-size:0.8rem; border:none; background:transparent; text-align:${type==='number'?'center':'left'};" placeholder="${placeholder}" value="${val}" onchange="window.updateBudgetPromotion('${empName}', '${key}', this.value)">`;
+  };
+
+  const tbody = emps.map((e, idx) => {
+    const empData = yearData[e.name] || {};
+    const curLevel = empData.current_level || '';
+    const curCoef = empData.current_coef || e.coefficients?.base || '';
+    
+    return `<tr>
+      <td style="text-align:center;">${idx+1}</td>
+      <td style="font-weight:600;">${e.name}</td>
+      <td style="padding:0;">${inpt(e.name, 'promotion_type')}</td>
+      <td style="padding:0;">${inpt(e.name, 'job_title')}</td>
+      <td style="text-align:center;">${empData.job_code || ''}</td>
+      <td style="padding:0;">${inpt(e.name, 'current_level')}</td>
+      <td style="padding:0;"><input type="text" class="select-input" style="width:100%; font-size:0.8rem; border:none; background:transparent; text-align:center;" value="${curCoef}" onchange="window.updateBudgetPromotion('${e.name}', 'current_coef', this.value)"></td>
+      <td style="padding:0;">${inpt(e.name, 'new_level')}</td>
+      <td style="padding:0;">${inpt(e.name, 'new_coef')}</td>
+      <td style="padding:0;">${inpt(e.name, 'new_vk')}</td>
+      <td style="padding:0;">${inpt(e.name, 'time')}</td>
+      <td style="padding:0;">${inpt(e.name, 'note')}</td>
+    </tr>`;
+  }).join('');
+
   return `
     <div style="padding: 1rem 0;">
-      <h3 style="text-align:center; font-weight:700;">DANH SÁCH DỰ KIẾN NÂNG LƯƠNG TRONG NĂM</h3>
-      <div class="table-container" style="margin-top:1rem;">
-        <table class="salary-detail-table">
+      <h3 style="text-align:center; font-weight:700;">DANH SÁCH DỰ KIẾN NÂNG LƯƠNG TRONG NĂM ${budgetYear}</h3>
+      <div class="table-container" style="margin-top:1rem; overflow-x:auto;">
+        <table class="salary-detail-table" style="min-width: 1400px; font-size: 0.8rem;">
           <thead>
             <tr>
-              <th style="width:50px; text-align:center;">STT</th>
-              <th>Họ và tên</th>
-              <th>Khoa/Phòng</th>
-              <th style="text-align:center;">Hệ số hiện tại</th>
-              <th style="text-align:center;">Thời gian dự kiến nâng</th>
-              <th style="text-align:center;">Hệ số mới</th>
-              <th>Ghi chú</th>
+              <th rowspan="2" style="width:40px; text-align:center;">STT</th>
+              <th rowspan="2" style="width:150px;">Họ và tên</th>
+              <th rowspan="2" style="width:200px;">Nâng lương</th>
+              <th rowspan="2" style="width:200px;">Chức danh nghề nghiệp</th>
+              <th rowspan="2" style="width:100px; text-align:center;">Mã ngạch</th>
+              <th colspan="2" style="text-align:center;">Hiện hưởng</th>
+              <th colspan="3" style="text-align:center;">Kết quả nâng bậc</th>
+              <th rowspan="2" style="width:120px; text-align:center;">Thời điểm hưởng</th>
+              <th rowspan="2">Ghi chú</th>
+            </tr>
+            <tr>
+              <th style="width:60px; text-align:center;">Bậc</th>
+              <th style="width:60px; text-align:center;">Hệ số</th>
+              <th style="width:60px; text-align:center;">Bậc</th>
+              <th style="width:60px; text-align:center;">Hệ số</th>
+              <th style="width:60px; text-align:center;">TNVK (%)</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td colspan="7" style="text-align:center; padding: 3rem; color: var(--text-muted);">
-                Chưa có dữ liệu nâng lương. Hệ thống đang được cập nhật...
-              </td>
-            </tr>
+            ${emps.length ? tbody : `<tr><td colspan="12" style="text-align:center; padding: 2rem;">Chưa có dữ liệu. Hãy import Bảng lương chính trước.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -1757,6 +1837,21 @@ window.updateBudgetInput = (key, value) => {
   } else {
     budgetManualInputs[key] = parseFloat(value) || 0;
   }
+};
+
+window.updateBudgetPromotion = (empName, key, value) => {
+  if (!budgetPromotionData[budgetYear]) budgetPromotionData[budgetYear] = {};
+  if (!budgetPromotionData[budgetYear][empName]) budgetPromotionData[budgetYear][empName] = {};
+  
+  budgetPromotionData[budgetYear][empName][key] = value;
+  
+  if (key === 'job_title') {
+    const job = JOB_TITLES.find(j => j.name === value);
+    budgetPromotionData[budgetYear][empName]['job_code'] = job ? job.code : '';
+  }
+  
+  saveToLocal();
+  render();
 };
 
 window.exportBudgetToExcel = function(type) {
