@@ -1513,8 +1513,16 @@ const BudgetPlanningModule = () => {
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
         ${navHTML}
         <div style="display:flex; gap:1rem; align-items:center;">
-          <label style="font-size:0.85rem;font-weight:600;">Lương cơ sở:</label>
-          <input type="number" id="budget-base-salary" value="${budgetBaseSalary}" class="select-input" style="width:120px;" onchange="window.updateBudgetBaseSalary(event)">
+          <div style="display:flex; align-items:center; gap:0.5rem; background:var(--bg-color); padding:0.25rem 0.75rem; border-radius:0.5rem; border:1px solid var(--border-color);">
+            <label style="font-size:0.85rem;font-weight:600;color:var(--text-color);">Lấy dữ liệu từ bảng lương tháng:</label>
+            <select class="select-input" style="width:100px; font-size:0.85rem; padding:0.25rem; border:none; background:transparent; font-weight:bold; color:var(--primary);" onchange="window.setBudgetBaseMonth(this.value)">
+              ${sortMonthsDesc(Object.keys(salaryData)).map(m => `<option value="${m}" ${m === (budgetBaseMonth || selectedMonth) ? 'selected' : ''}>${m}</option>`).join('')}
+            </select>
+          </div>
+          <div style="display:flex; align-items:center; gap:0.5rem; background:var(--bg-color); padding:0.25rem 0.75rem; border-radius:0.5rem; border:1px solid var(--border-color);">
+            <label style="font-size:0.85rem;font-weight:600;color:var(--text-color);">Lương cơ sở:</label>
+            <input type="number" id="budget-base-salary" value="${budgetBaseSalary}" class="select-input" style="width:100px; padding:0.25rem; border:none; background:transparent; font-weight:bold; color:var(--primary);" onchange="window.updateBudgetBaseSalary(event)">
+          </div>
         </div>
       </div>
       ${content}
