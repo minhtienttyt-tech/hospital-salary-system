@@ -1282,18 +1282,50 @@ const BudgetTemplateTab = () => {
   `;
 };
 
+const BudgetPromotionTab = () => {
+  return `
+    <div style="padding: 1rem 0;">
+      <h3 style="text-align:center; font-weight:700;">DANH SÁCH DỰ KIẾN NÂNG LƯƠNG TRONG NĂM</h3>
+      <div class="table-container" style="margin-top:1rem;">
+        <table class="salary-detail-table">
+          <thead>
+            <tr>
+              <th style="width:50px; text-align:center;">STT</th>
+              <th>Họ và tên</th>
+              <th>Khoa/Phòng</th>
+              <th style="text-align:center;">Hệ số hiện tại</th>
+              <th style="text-align:center;">Thời gian dự kiến nâng</th>
+              <th style="text-align:center;">Hệ số mới</th>
+              <th>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="7" style="text-align:center; padding: 3rem; color: var(--text-muted);">
+                Chưa có dữ liệu nâng lương. Hệ thống đang được cập nhật...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+};
+
 const BudgetPlanningModule = () => {
   const navHTML = `
     <div class="segmented-control" style="margin-bottom: 0;">
       <button class="control-btn ${budgetSubTab==='salary'?'active':''}" onclick="window.setBudgetTab('salary')">Bảng lương dự toán</button>
       <button class="control-btn ${budgetSubTab==='coefficients'?'active':''}" onclick="window.setBudgetTab('coefficients')">Tổng hợp hệ số</button>
-      <button class="control-btn ${budgetSubTab==='template'?'active':''}" onclick="window.setBudgetTab('template')">Mẫu xây dựng dự toán</button>
+      <button class="control-btn ${budgetSubTab==='promotion'?'active':''}" onclick="window.setBudgetTab('promotion')">Nâng lương</button>
+      <button class="control-btn ${budgetSubTab==='template'?'active':''}" onclick="window.setBudgetTab('template')">Biểu thuyết minh</button>
     </div>
   `;
 
   let content = '';
   if (budgetSubTab === 'salary') content = BudgetSalaryTab();
   else if (budgetSubTab === 'coefficients') content = BudgetCoefficientsTab();
+  else if (budgetSubTab === 'promotion') content = BudgetPromotionTab();
   else if (budgetSubTab === 'template') content = BudgetTemplateTab();
 
   return `
