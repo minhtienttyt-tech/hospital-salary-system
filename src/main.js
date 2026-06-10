@@ -1340,7 +1340,7 @@ const BudgetPromotionTab = () => {
   const ff = (v) => v ? v.toFixed(3).replace('.',',') : '';
 
   let totals = {
-    lc_tt: 0, vk_tt: 0, ud56_tt: 0, ud76_tt: 0, th70_tt: 0, tong_cong: 0, khau_tru: 0, thuc_linh: 0
+    lc_tt: 0, vk_tt: 0, ud56_tt: 0, tong_cong: 0, khau_tru: 0, thuc_linh: 0
   };
 
   const tbody = emps.map((e, idx) => {
@@ -1375,18 +1375,12 @@ const BudgetPromotionTab = () => {
     const ud56_hs = (lc_hs + vk_hs) * ud56_pct / 100;
     const ud56_tt = Math.round(ud56_hs * budgetBaseSalary);
     
-    const ud76_hs = (lc_hs + vk_hs) * ud76_pct / 100;
-    const ud76_tt = Math.round(ud76_hs * budgetBaseSalary);
-    
-    const th70_hs = (lc_hs + vk_hs) * th70_pct / 100;
-    const th70_tt = Math.round(th70_hs * budgetBaseSalary);
-    
-    const tong_cong = lc_tt + vk_tt + ud56_tt + ud76_tt + th70_tt;
+    const tong_cong = lc_tt + vk_tt + ud56_tt;
     const khau_tru = Math.round((lc_tt + vk_tt) * 0.105);
     const thuc_linh = tong_cong - khau_tru;
 
-    totals.lc_tt += lc_tt; totals.vk_tt += vk_tt; totals.ud56_tt += ud56_tt; totals.ud76_tt += ud76_tt;
-    totals.th70_tt += th70_tt; totals.tong_cong += tong_cong; totals.khau_tru += khau_tru; totals.thuc_linh += thuc_linh;
+    totals.lc_tt += lc_tt; totals.vk_tt += vk_tt; totals.ud56_tt += ud56_tt;
+    totals.tong_cong += tong_cong; totals.khau_tru += khau_tru; totals.thuc_linh += thuc_linh;
 
     return `<tr>
       <td class="sticky-col" style="text-align:center; left:0; width:40px; background:var(--card-bg); z-index:20;">${idx+1}</td>
@@ -1421,18 +1415,6 @@ const BudgetPromotionTab = () => {
       </td>
       <td style="text-align:right;">${fmt(ud56_tt)}</td>
       
-      <td style="padding:0; text-align:center;">
-        <input type="number" class="select-input" style="width:40px; border:none; background:transparent; text-align:center; padding:0;" value="${ud76_pct}" onchange="window.updateBudgetPromotion('${e.name}', 'ud76_pct', parseFloat(this.value)||0)">%<br>
-        <span style="font-size:0.75rem; color:var(--text-muted);">${ff(ud76_hs)}</span>
-      </td>
-      <td style="text-align:right;">${fmt(ud76_tt)}</td>
-      
-      <td style="padding:0; text-align:center;">
-        <input type="number" class="select-input" style="width:40px; border:none; background:transparent; text-align:center; padding:0;" value="${th70_pct}" onchange="window.updateBudgetPromotion('${e.name}', 'th70_pct', parseFloat(this.value)||0)">%<br>
-        <span style="font-size:0.75rem; color:var(--text-muted);">${ff(th70_hs)}</span>
-      </td>
-      <td style="text-align:right;">${fmt(th70_tt)}</td>
-      
       <td class="highlight-total" style="text-align:right;">${fmt(tong_cong)}</td>
       <td style="text-align:right; color:var(--danger); font-weight:600;">${fmt(khau_tru)}</td>
       <td class="highlight-total" style="text-align:right; color:var(--primary);">${fmt(thuc_linh)}</td>
@@ -1460,8 +1442,6 @@ const BudgetPromotionTab = () => {
               <th colspan="2" style="text-align:center;">Lương chính</th>
               <th colspan="2" style="text-align:center;">PC vượt khung</th>
               <th colspan="2" style="text-align:center;">PC ưu đãi (NĐ56)</th>
-              <th colspan="2" style="text-align:center;">PC ưu đãi (NĐ76)</th>
-              <th colspan="2" style="text-align:center;">PC thu hút 70%</th>
               <th rowspan="2" style="width:100px; text-align:center;">Tổng cộng</th>
               <th rowspan="2" style="width:100px; text-align:center;">10,5% phải nộp</th>
               <th rowspan="2" style="width:100px; text-align:center;">Thực lĩnh</th>
@@ -1483,14 +1463,10 @@ const BudgetPromotionTab = () => {
               <th style="width:90px; text-align:center;">Thành tiền</th>
               <th style="width:60px; text-align:center;">Hệ số</th>
               <th style="width:90px; text-align:center;">Thành tiền</th>
-              <th style="width:60px; text-align:center;">Hệ số</th>
-              <th style="width:90px; text-align:center;">Thành tiền</th>
-              <th style="width:60px; text-align:center;">Hệ số</th>
-              <th style="width:90px; text-align:center;">Thành tiền</th>
             </tr>
           </thead>
           <tbody>
-            ${emps.length ? tbody : `<tr><td colspan="28" style="text-align:center; padding: 2rem;">Chưa có dữ liệu. Hãy import Bảng lương chính trước.</td></tr>`}
+            ${emps.length ? tbody : `<tr><td colspan="24" style="text-align:center; padding: 2rem;">Chưa có dữ liệu. Hãy import Bảng lương chính trước.</td></tr>`}
           </tbody>
           ${emps.length ? `
           <tfoot>
@@ -1501,10 +1477,6 @@ const BudgetPromotionTab = () => {
               <td style="text-align:right; color:var(--primary);">${fmt(totals.vk_tt)}</td>
               <td></td>
               <td style="text-align:right; color:var(--primary);">${fmt(totals.ud56_tt)}</td>
-              <td></td>
-              <td style="text-align:right; color:var(--primary);">${fmt(totals.ud76_tt)}</td>
-              <td></td>
-              <td style="text-align:right; color:var(--primary);">${fmt(totals.th70_tt)}</td>
               <td style="text-align:right; color:var(--primary);">${fmt(totals.tong_cong)}</td>
               <td style="text-align:right; color:var(--danger);">${fmt(totals.khau_tru)}</td>
               <td style="text-align:right; color:var(--primary);">${fmt(totals.thuc_linh)}</td>

@@ -521,7 +521,7 @@
       </select>`:n===`promotion_type`?`<select class="select-input" style="width:100%; min-width:120px; font-size:0.8rem; border:none; background:transparent;" onchange="window.updateBudgetPromotion('${e}', 'promotion_type', this.value)">
         <option value="">-- Chọn --</option>
         ${X.map(e=>`<option value="${e}" ${a===e?`selected`:``}>${e}</option>`).join(``)}
-      </select>`:`<input type="${i}" class="select-input" style="width:100%; font-size:0.8rem; border:none; background:transparent; text-align:${i===`number`?`center`:`left`};" placeholder="${r}" value="${a}" onchange="window.updateBudgetPromotion('${e}', '${n}', this.value)">`},a=e=>e?e.toFixed(3).replace(`.`,`,`):``,o={lc_tt:0,vk_tt:0,ud56_tt:0,ud76_tt:0,th70_tt:0,tong_cong:0,khau_tru:0,thuc_linh:0},s=e.map((e,n)=>{let i=t[e.name]||{},s=i.hh_he_so===void 0?e.coefficients?.base||0:i.hh_he_so,c=i.hh_vk===void 0?0:i.hh_vk;i.hh_vk===void 0&&e.coefficients?.vkhung&&(c=e.coefficients.vkhung/(e.coefficients.base||1)*100);let l=i.nb_he_so||0,u=i.nb_vk||0,d=i.so_thang||0,f=i.ud56_pct===void 0?e.coefficients?.incentive?e.coefficients.incentive*100:0:i.ud56_pct,p=i.ud76_pct||0,m=i.th70_pct||0,g=Math.max(0,l-s),_=Math.max(0,l*u/100-s*c/100),v=g*d,y=Math.round(v*h),b=_*d,x=Math.round(b*h),S=(v+b)*f/100,C=Math.round(S*h),w=(v+b)*p/100,T=Math.round(w*h),E=(v+b)*m/100,D=Math.round(E*h),O=y+x+C+T+D,A=Math.round((y+x)*.105),j=O-A;return o.lc_tt+=y,o.vk_tt+=x,o.ud56_tt+=C,o.ud76_tt+=T,o.th70_tt+=D,o.tong_cong+=O,o.khau_tru+=A,o.thuc_linh+=j,`<tr>
+      </select>`:`<input type="${i}" class="select-input" style="width:100%; font-size:0.8rem; border:none; background:transparent; text-align:${i===`number`?`center`:`left`};" placeholder="${r}" value="${a}" onchange="window.updateBudgetPromotion('${e}', '${n}', this.value)">`},a=e=>e?e.toFixed(3).replace(`.`,`,`):``,o={lc_tt:0,vk_tt:0,ud56_tt:0,tong_cong:0,khau_tru:0,thuc_linh:0},s=e.map((e,n)=>{let i=t[e.name]||{},s=i.hh_he_so===void 0?e.coefficients?.base||0:i.hh_he_so,c=i.hh_vk===void 0?0:i.hh_vk;i.hh_vk===void 0&&e.coefficients?.vkhung&&(c=e.coefficients.vkhung/(e.coefficients.base||1)*100);let l=i.nb_he_so||0,u=i.nb_vk||0,d=i.so_thang||0,f=i.ud56_pct===void 0?e.coefficients?.incentive?e.coefficients.incentive*100:0:i.ud56_pct;i.ud76_pct,i.th70_pct;let p=Math.max(0,l-s),m=Math.max(0,l*u/100-s*c/100),g=p*d,_=Math.round(g*h),v=m*d,y=Math.round(v*h),b=(g+v)*f/100,x=Math.round(b*h),S=_+y+x,C=Math.round((_+y)*.105),w=S-C;return o.lc_tt+=_,o.vk_tt+=y,o.ud56_tt+=x,o.tong_cong+=S,o.khau_tru+=C,o.thuc_linh+=w,`<tr>
       <td class="sticky-col" style="text-align:center; left:0; width:40px; background:var(--card-bg); z-index:20;">${n+1}</td>
       <td class="sticky-col" style="padding:0; left:40px; width:150px; background:var(--card-bg); z-index:20; border-right:1px solid var(--border-color);">${r(e.name,`promotion_type`)}</td>
       <td class="sticky-col" style="font-weight:600; left:190px; width:160px; background:var(--card-bg); z-index:20;">${e.name}</td>
@@ -537,38 +537,26 @@
       <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center; color:var(--primary); font-weight:bold;" value="${l}" onchange="window.updateBudgetPromotion('${e.name}', 'nb_he_so', parseFloat(this.value)||0)"></td>
       <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center;" value="${u}" onchange="window.updateBudgetPromotion('${e.name}', 'nb_vk', parseFloat(this.value)||0)"></td>
       
-      <td style="text-align:center; font-weight:600; background:#f8fafc;">${a(g)}</td>
-      <td style="text-align:center; font-weight:600; background:#f8fafc;">${a(_)}</td>
+      <td style="text-align:center; font-weight:600; background:#f8fafc;">${a(p)}</td>
+      <td style="text-align:center; font-weight:600; background:#f8fafc;">${a(m)}</td>
       
       <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:#eff6ff; text-align:center; font-weight:bold; color:var(--primary);" value="${d}" onchange="window.updateBudgetPromotion('${e.name}', 'so_thang', parseFloat(this.value)||0)"></td>
+      
+      <td style="text-align:center;">${a(g)}</td>
+      <td style="text-align:right;">${k(_)}</td>
       
       <td style="text-align:center;">${a(v)}</td>
       <td style="text-align:right;">${k(y)}</td>
       
-      <td style="text-align:center;">${a(b)}</td>
-      <td style="text-align:right;">${k(x)}</td>
-      
       <td style="padding:0; text-align:center;">
         <input type="number" class="select-input" style="width:40px; border:none; background:transparent; text-align:center; padding:0;" value="${f}" onchange="window.updateBudgetPromotion('${e.name}', 'ud56_pct', parseFloat(this.value)||0)">%<br>
-        <span style="font-size:0.75rem; color:var(--text-muted);">${a(S)}</span>
+        <span style="font-size:0.75rem; color:var(--text-muted);">${a(b)}</span>
       </td>
-      <td style="text-align:right;">${k(C)}</td>
+      <td style="text-align:right;">${k(x)}</td>
       
-      <td style="padding:0; text-align:center;">
-        <input type="number" class="select-input" style="width:40px; border:none; background:transparent; text-align:center; padding:0;" value="${p}" onchange="window.updateBudgetPromotion('${e.name}', 'ud76_pct', parseFloat(this.value)||0)">%<br>
-        <span style="font-size:0.75rem; color:var(--text-muted);">${a(w)}</span>
-      </td>
-      <td style="text-align:right;">${k(T)}</td>
-      
-      <td style="padding:0; text-align:center;">
-        <input type="number" class="select-input" style="width:40px; border:none; background:transparent; text-align:center; padding:0;" value="${m}" onchange="window.updateBudgetPromotion('${e.name}', 'th70_pct', parseFloat(this.value)||0)">%<br>
-        <span style="font-size:0.75rem; color:var(--text-muted);">${a(E)}</span>
-      </td>
-      <td style="text-align:right;">${k(D)}</td>
-      
-      <td class="highlight-total" style="text-align:right;">${k(O)}</td>
-      <td style="text-align:right; color:var(--danger); font-weight:600;">${k(A)}</td>
-      <td class="highlight-total" style="text-align:right; color:var(--primary);">${k(j)}</td>
+      <td class="highlight-total" style="text-align:right;">${k(S)}</td>
+      <td style="text-align:right; color:var(--danger); font-weight:600;">${k(C)}</td>
+      <td class="highlight-total" style="text-align:right; color:var(--primary);">${k(w)}</td>
       <td style="padding:0;">${r(e.name,`note`)}</td>
     </tr>`}).join(``);return`
     <div style="padding: 1rem 0;">
@@ -590,8 +578,6 @@
               <th colspan="2" style="text-align:center;">Lương chính</th>
               <th colspan="2" style="text-align:center;">PC vượt khung</th>
               <th colspan="2" style="text-align:center;">PC ưu đãi (NĐ56)</th>
-              <th colspan="2" style="text-align:center;">PC ưu đãi (NĐ76)</th>
-              <th colspan="2" style="text-align:center;">PC thu hút 70%</th>
               <th rowspan="2" style="width:100px; text-align:center;">Tổng cộng</th>
               <th rowspan="2" style="width:100px; text-align:center;">10,5% phải nộp</th>
               <th rowspan="2" style="width:100px; text-align:center;">Thực lĩnh</th>
@@ -613,14 +599,10 @@
               <th style="width:90px; text-align:center;">Thành tiền</th>
               <th style="width:60px; text-align:center;">Hệ số</th>
               <th style="width:90px; text-align:center;">Thành tiền</th>
-              <th style="width:60px; text-align:center;">Hệ số</th>
-              <th style="width:90px; text-align:center;">Thành tiền</th>
-              <th style="width:60px; text-align:center;">Hệ số</th>
-              <th style="width:90px; text-align:center;">Thành tiền</th>
             </tr>
           </thead>
           <tbody>
-            ${e.length?s:`<tr><td colspan="28" style="text-align:center; padding: 2rem;">Chưa có dữ liệu. Hãy import Bảng lương chính trước.</td></tr>`}
+            ${e.length?s:`<tr><td colspan="24" style="text-align:center; padding: 2rem;">Chưa có dữ liệu. Hãy import Bảng lương chính trước.</td></tr>`}
           </tbody>
           ${e.length?`
           <tfoot>
@@ -631,10 +613,6 @@
               <td style="text-align:right; color:var(--primary);">${k(o.vk_tt)}</td>
               <td></td>
               <td style="text-align:right; color:var(--primary);">${k(o.ud56_tt)}</td>
-              <td></td>
-              <td style="text-align:right; color:var(--primary);">${k(o.ud76_tt)}</td>
-              <td></td>
-              <td style="text-align:right; color:var(--primary);">${k(o.th70_tt)}</td>
               <td style="text-align:right; color:var(--primary);">${k(o.tong_cong)}</td>
               <td style="text-align:right; color:var(--danger);">${k(o.khau_tru)}</td>
               <td style="text-align:right; color:var(--primary);">${k(o.thuc_linh)}</td>
