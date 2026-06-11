@@ -521,7 +521,7 @@
       </select>`:n===`promotion_type`?`<select class="select-input" style="width:100%; min-width:120px; font-size:0.8rem; border:none; background:transparent;" onchange="window.updateBudgetPromotion('${e}', 'promotion_type', this.value)">
         <option value="">-- Chọn --</option>
         ${X.map(e=>`<option value="${e}" ${a===e?`selected`:``}>${e}</option>`).join(``)}
-      </select>`:`<input type="${i}" class="select-input" style="width:100%; font-size:0.8rem; border:none; background:transparent; text-align:${i===`number`?`center`:`left`};" placeholder="${r}" value="${a}" onchange="window.updateBudgetPromotion('${e}', '${n}', this.value)">`},a=e=>e?e.toFixed(3).replace(`.`,`,`):``,o={lc_tt:0,vk_tt:0,ud56_tt:0,tong_cong:0,khau_tru:0,thuc_linh:0},s=e.map((e,n)=>{let i=t[e.name]||{},s=i.hh_he_so===void 0?e.coefficients?.base||0:i.hh_he_so,c=i.hh_vk===void 0?0:i.hh_vk;i.hh_vk===void 0&&e.coefficients?.vkhung&&(c=e.coefficients.vkhung/(e.coefficients.base||1)*100);let l=i.nb_he_so||0,u=i.nb_vk||0,d=i.so_thang||0,f=i.ud56_pct===void 0?e.coefficients?.incentive?e.coefficients.incentive*100:0:i.ud56_pct;i.ud76_pct,i.th70_pct;let p=Math.max(0,l-s),m=Math.max(0,l*u/100-s*c/100),g=p*d,_=Math.round(g*h),v=m*d,y=Math.round(v*h),b=(g+v)*f/100,x=Math.round(b*h),S=_+y+x,C=Math.round((_+y)*.105),w=S-C;return o.lc_tt+=_,o.vk_tt+=y,o.ud56_tt+=x,o.tong_cong+=S,o.khau_tru+=C,o.thuc_linh+=w,`<tr>
+      </select>`:`<input type="${i}" class="select-input" style="width:100%; font-size:0.8rem; border:none; background:transparent; text-align:${i===`number`?`center`:`left`};" placeholder="${r}" value="${a}" onchange="window.updateBudgetPromotion('${e}', '${n}', this.value)">`},a=e=>e?e.toFixed(3).replace(`.`,`,`):``,o={lc_tt:0,vk_tt:0,ud56_tt:0,tong_cong:0,khau_tru:0,thuc_linh:0},s=e.map((e,n)=>{let i=t[e.name]||{},s=parseFloat((e.coefficients?.base||``).toString().replace(`,`,`.`))||0,c=parseFloat((e.coefficients?.vkhung||``).toString().replace(`,`,`.`))||0,l=parseFloat((e.coefficients?.incentive||``).toString().replace(`,`,`.`))||0,u=i.hh_he_so===void 0?s:i.hh_he_so,d=i.hh_vk===void 0?0:i.hh_vk;i.hh_vk===void 0&&c>0&&(d=c/(s||1)*100);let f=i.nb_he_so||0,p=i.nb_vk||0,m=i.so_thang||0,g=i.ud56_pct===void 0?l*100:i.ud56_pct;i.ud76_pct,i.th70_pct;let _=Math.max(0,f-u),v=Math.max(0,f*p/100-u*d/100),y=_*m,b=Math.round(y*h),x=v*m,S=Math.round(x*h),C=(y+x)*g/100,w=Math.round(C*h),T=b+S+w,E=Math.round((b+S)*.105),D=T-E;return o.lc_tt+=b,o.vk_tt+=S,o.ud56_tt+=w,o.tong_cong+=T,o.khau_tru+=E,o.thuc_linh+=D,`<tr>
       <td class="sticky-col" style="text-align:center; left:0; width:40px; background:var(--card-bg); z-index:20;">${n+1}</td>
       <td class="sticky-col" style="padding:0; left:40px; width:150px; background:var(--card-bg); z-index:20; border-right:1px solid var(--border-color);">${r(e.name,`promotion_type`)}</td>
       <td class="sticky-col" style="font-weight:600; left:190px; width:160px; background:var(--card-bg); z-index:20;">${e.name}</td>
@@ -529,34 +529,34 @@
       
       <td style="text-align:center; font-weight:bold; color:var(--primary);">${i.job_code||``}</td>
       <td style="padding:0;">${r(e.name,`hh_bac`)}</td>
-      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center;" value="${s}" onchange="window.updateBudgetPromotion('${e.name}', 'hh_he_so', parseFloat(this.value)||0)"></td>
-      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center;" value="${c}" onchange="window.updateBudgetPromotion('${e.name}', 'hh_vk', parseFloat(this.value)||0)"></td>
+      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center;" value="${u}" onchange="window.updateBudgetPromotion('${e.name}', 'hh_he_so', parseFloat(this.value)||0)"></td>
+      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center;" value="${d}" onchange="window.updateBudgetPromotion('${e.name}', 'hh_vk', parseFloat(this.value)||0)"></td>
       
       <td style="padding:0;">${r(e.name,`nb_bac`)}</td>
       <td style="padding:0;">${r(e.name,`nb_date`)}</td>
-      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center; color:var(--primary); font-weight:bold;" value="${l}" onchange="window.updateBudgetPromotion('${e.name}', 'nb_he_so', parseFloat(this.value)||0)"></td>
-      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center;" value="${u}" onchange="window.updateBudgetPromotion('${e.name}', 'nb_vk', parseFloat(this.value)||0)"></td>
+      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center; color:var(--primary); font-weight:bold;" value="${f}" onchange="window.updateBudgetPromotion('${e.name}', 'nb_he_so', parseFloat(this.value)||0)"></td>
+      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:transparent; text-align:center;" value="${p}" onchange="window.updateBudgetPromotion('${e.name}', 'nb_vk', parseFloat(this.value)||0)"></td>
       
-      <td style="text-align:center; font-weight:600; background:#f8fafc;">${a(p)}</td>
-      <td style="text-align:center; font-weight:600; background:#f8fafc;">${a(m)}</td>
+      <td style="text-align:center; font-weight:600; background:#f8fafc;">${a(_)}</td>
+      <td style="text-align:center; font-weight:600; background:#f8fafc;">${a(v)}</td>
       
-      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:#eff6ff; text-align:center; font-weight:bold; color:var(--primary);" value="${d}" onchange="window.updateBudgetPromotion('${e.name}', 'so_thang', parseFloat(this.value)||0)"></td>
+      <td style="padding:0;"><input type="number" class="select-input" style="width:100%; border:none; background:#eff6ff; text-align:center; font-weight:bold; color:var(--primary);" value="${m}" onchange="window.updateBudgetPromotion('${e.name}', 'so_thang', parseFloat(this.value)||0)"></td>
       
-      <td style="text-align:center;">${a(g)}</td>
-      <td style="text-align:right;">${k(_)}</td>
+      <td style="text-align:center;">${a(y)}</td>
+      <td style="text-align:right;">${k(b)}</td>
       
-      <td style="text-align:center;">${a(v)}</td>
-      <td style="text-align:right;">${k(y)}</td>
+      <td style="text-align:center;">${a(x)}</td>
+      <td style="text-align:right;">${k(S)}</td>
       
       <td style="padding:0; text-align:center;">
-        <input type="number" class="select-input" style="width:40px; border:none; background:transparent; text-align:center; padding:0;" value="${f}" onchange="window.updateBudgetPromotion('${e.name}', 'ud56_pct', parseFloat(this.value)||0)">%<br>
-        <span style="font-size:0.75rem; color:var(--text-muted);">${a(b)}</span>
+        <input type="number" class="select-input" style="width:40px; border:none; background:transparent; text-align:center; padding:0;" value="${g}" onchange="window.updateBudgetPromotion('${e.name}', 'ud56_pct', parseFloat(this.value)||0)">%<br>
+        <span style="font-size:0.75rem; color:var(--text-muted);">${a(C)}</span>
       </td>
-      <td style="text-align:right;">${k(x)}</td>
+      <td style="text-align:right;">${k(w)}</td>
       
-      <td class="highlight-total" style="text-align:right;">${k(S)}</td>
-      <td style="text-align:right; color:var(--danger); font-weight:600;">${k(C)}</td>
-      <td class="highlight-total" style="text-align:right; color:var(--primary);">${k(w)}</td>
+      <td class="highlight-total" style="text-align:right;">${k(T)}</td>
+      <td style="text-align:right; color:var(--danger); font-weight:600;">${k(E)}</td>
+      <td class="highlight-total" style="text-align:right; color:var(--primary);">${k(D)}</td>
       <td style="padding:0;">${r(e.name,`note`)}</td>
     </tr>`}).join(``);return`
     <div style="padding: 1rem 0;">

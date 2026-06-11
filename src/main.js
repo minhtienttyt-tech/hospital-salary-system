@@ -1346,11 +1346,16 @@ const BudgetPromotionTab = () => {
   const tbody = emps.map((e, idx) => {
     const empData = yearData[e.name] || {};
     
+    // Parse raw coefficients from CSV which might be strings with commas like "3,0" or " 4,06 "
+    const baseCoef = parseFloat((e.coefficients?.base || '').toString().replace(',', '.')) || 0;
+    const vkhungCoef = parseFloat((e.coefficients?.vkhung || '').toString().replace(',', '.')) || 0;
+    const incCoef = parseFloat((e.coefficients?.incentive || '').toString().replace(',', '.')) || 0;
+
     // User inputs
-    const curCoef = empData.hh_he_so !== undefined ? empData.hh_he_so : (e.coefficients?.base || 0);
+    const curCoef = empData.hh_he_so !== undefined ? empData.hh_he_so : baseCoef;
     let curVk = empData.hh_vk !== undefined ? empData.hh_vk : 0;
-    if (empData.hh_vk === undefined && e.coefficients?.vkhung) {
-      curVk = (e.coefficients.vkhung / (e.coefficients.base || 1)) * 100;
+    if (empData.hh_vk === undefined && vkhungCoef > 0) {
+      curVk = (vkhungCoef / (baseCoef || 1)) * 100;
     }
     
     const newCoef = empData.nb_he_so || 0;
@@ -1358,7 +1363,7 @@ const BudgetPromotionTab = () => {
     const soThang = empData.so_thang || 0;
     
     // Percentages
-    const ud56_pct = empData.ud56_pct !== undefined ? empData.ud56_pct : (e.coefficients?.incentive ? e.coefficients.incentive * 100 : 0);
+    const ud56_pct = empData.ud56_pct !== undefined ? empData.ud56_pct : (incCoef * 100);
     const ud76_pct = empData.ud76_pct || 0;
     const th70_pct = empData.th70_pct || 0;
     
