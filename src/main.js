@@ -203,7 +203,7 @@ function processCSV(csvText) {
   return result;
 }
 
-function processBonusCSV(text) {
+function processBonusCSV(text, defaultContent = '') {
   const rows = Papa.parse(text, { skipEmptyLines: true }).data;
   if (rows.length < 2) return [];
 
@@ -234,7 +234,7 @@ function processBonusCSV(text) {
     result.push({
       name: name,
       amount: parseVNNumber(row[amtIdx]),
-      content: contentIdx !== -1 ? (row[contentIdx]?.toString().trim() || '') : ''
+      content: contentIdx !== -1 ? (row[contentIdx]?.toString().trim() || defaultContent) : defaultContent
     });
   }
   return result;
@@ -1650,6 +1650,7 @@ const render = () => {
         <div class="card modal-content" style="max-width:500px;">
           <h2 id="import-title">Import dữ liệu</h2>
           <div style="margin: 1rem 0;"><label>Tên tháng (MM/YYYY):</label><input type="text" id="import-month-name" class="select-input" style="width:100%;" value="${selectedMonth}"></div>
+          <div id="import-bonus-content-container" style="margin-bottom: 1rem; display:none;"><label>Nội dung khen thưởng (Áp dụng chung):</label><input type="text" id="import-bonus-content" class="select-input" style="width:100%;" placeholder="VD: Thưởng lễ 30/4"></div>
           <div style="margin-bottom: 1rem;"><label>Link Google Sheets:</label><input type="text" id="import-url" class="select-input" style="width:100%;"></div>
           <div style="margin-bottom: 1.5rem;"><label>ID của Sheet (GID):</label><input type="text" id="import-gid" class="select-input" style="width:100%;"></div>
           <div style="display:flex;gap:1rem;justify-content:flex-end;"><button class="btn btn-secondary" id="close-modal">Hủy</button><button class="btn btn-primary" id="confirm-import">Bắt đầu Import</button></div>
@@ -1688,11 +1689,39 @@ const render = () => {
 
     const ib = document.getElementById('import-btn'), im = document.getElementById('import-modal'), cm = document.getElementById('close-modal'), cfm = document.getElementById('confirm-import');
     if(cm) cm.onclick = () => im.style.display = 'none';
+    const otib = document.getElementById('import-ot-btn'), bnib = document.getElementById('import-bonus-btn'), nq20ib = document.getElementById('import-nq20-btn');
+    const toggleBonusContent = (show) => { const c = document.getElementById('import-bonus-content-container'); if(c) c.style.display = show ? 'block' : 'none'; };
+    if(otib) otib.onclick = () => {
+      document.getElementById('import-title').textContent = 'Import Ngoài giờ';
+      document.getElementById('import-url').value = 'https://docs.google.com/spreadsheets/d/1d4VhrIM_lk8BeODjG2_PCAK85NXOVI6aLQO1XlUjyiU/edit';
+      document.getElementById('import-gid').value = '2041249704'; 
+      cfm.setAttribute('data-type', 'overtime'); toggleBonusContent(false); im.style.display = 'flex';
+    };
+    if(ib) ib.onclick = () => {
+      document.getElementById('import-title').textContent = 'Import Lương';
+      document.getElementById('import-url').value = localStorage.getItem('last_salary_url') || SHEET_CSV_URL;
+      document.getElementById('import-gid').value = localStorage.getItem('last_salary_gid') || '';
+      cfm.setAttribute('data-type', 'salary'); toggleBonusContent(false); im.style.display = 'flex';
+    };
+    if(bnib) bnib.onclick = () => {
+      document.getElementById('import-title').textContent = 'Import Khen thưởng';
+      document.getElementById('import-url').value = localStorage.getItem('last_bonus_url') || 'https://docs.google.com/spreadsheets/d/1Imhhn8uEhS2_Wn_3TbQlohsrEUUai_EK6JVJfNUDboQ/edit';
+      document.getElementById('import-gid').value = localStorage.getItem('last_bonus_gid') || '1464193880';
+      cfm.setAttribute('data-type', 'bonus'); toggleBonusContent(true); im.style.display = 'flex';
+    };
+    if(nq20ib) nq20ib.onclick = () => {
+      document.getElementById('import-title').textContent = 'Import NQ20';
+      document.getElementById('import-url').value = localStorage.getItem('last_nq20_url') || 'https://docs.google.com/spreadsheets/d/1Imhhn8uEhS2_Wn_3TbQlohsrEUUai_EK6JVJfNUDboQ/edit';
+      document.getElementById('import-gid').value = localStorage.getItem('last_nq20_gid') || '';
+      cfm.setAttribute('data-type', 'nq20'); toggleBonusContent(false); im.style.display = 'flex';
+    };
+
     if(cfm) cfm.onclick = async () => {
       const m = document.getElementById('import-month-name').value.trim();
       const u = document.getElementById('import-url').value.trim();
       const g = document.getElementById('import-gid').value.trim();
       const type = cfm.getAttribute('data-type') || 'salary';
+      const defaultContent = document.getElementById('import-bonus-content') ? document.getElementById('import-bonus-content').value.trim() : '';
       if(!m || !u) return alert('Thiếu thông tin');
       cfm.textContent = 'Đang xử lý...'; cfm.disabled = true;
       try {
@@ -1708,7 +1737,7 @@ const render = () => {
           if(!parsed.length) throw new Error('Dữ liệu không hợp lệ');
           salaryData[m] = parsed; 
         } else if (type === 'bonus') {
-          const parsed = processBonusCSV(text);
+          const parsed = processBonusCSV(text, defaultContent);
           if(!parsed.length) throw new Error('Dữ liệu không hợp lệ');
           bonusData[m] = parsed; 
         } else if (type === 'nq20') {
@@ -1727,32 +1756,7 @@ const render = () => {
       } catch (e) { alert('Lỗi: ' + e.message); } finally { cfm.textContent = 'Bắt đầu Import'; cfm.disabled = false; }
     };
 
-    const otib = document.getElementById('import-ot-btn'), bnib = document.getElementById('import-bonus-btn'), nq20ib = document.getElementById('import-nq20-btn');
-    if(otib) otib.onclick = () => {
-      document.getElementById('import-title').textContent = 'Import Ngoài giờ';
-      document.getElementById('import-url').value = 'https://docs.google.com/spreadsheets/d/1d4VhrIM_lk8BeODjG2_PCAK85NXOVI6aLQO1XlUjyiU/edit';
-      document.getElementById('import-gid').value = '2041249704'; 
-      cfm.setAttribute('data-type', 'overtime'); im.style.display = 'flex';
-    };
-    if(ib) ib.onclick = () => {
-      document.getElementById('import-title').textContent = 'Import Lương';
-      document.getElementById('import-url').value = localStorage.getItem('last_salary_url') || SHEET_CSV_URL;
-      document.getElementById('import-gid').value = localStorage.getItem('last_salary_gid') || '';
-      cfm.setAttribute('data-type', 'salary'); im.style.display = 'flex';
-    };
-    if(bnib) bnib.onclick = () => {
-      document.getElementById('import-title').textContent = 'Import Khen thưởng';
-      document.getElementById('import-url').value = localStorage.getItem('last_bonus_url') || 'https://docs.google.com/spreadsheets/d/1Imhhn8uEhS2_Wn_3TbQlohsrEUUai_EK6JVJfNUDboQ/edit';
-      document.getElementById('import-gid').value = localStorage.getItem('last_bonus_gid') || '1464193880';
-      cfm.setAttribute('data-type', 'bonus'); im.style.display = 'flex';
-    };
-    if(nq20ib) nq20ib.onclick = () => {
-      document.getElementById('import-title').textContent = 'Import NQ20';
-      document.getElementById('import-url').value = localStorage.getItem('last_nq20_url') || 'https://docs.google.com/spreadsheets/d/1Imhhn8uEhS2_Wn_3TbQlohsrEUUai_EK6JVJfNUDboQ/edit';
-      document.getElementById('import-gid').value = localStorage.getItem('last_nq20_gid') || '';
-      if (document.getElementById('import-content-group')) document.getElementById('import-content-group').style.display = 'none';
-      cfm.setAttribute('data-type', 'nq20'); im.style.display = 'flex';
-    };
+
 
     const sps = document.getElementById('summary-period-selector'), ops = document.getElementById('ot-period-selector'), bps = document.getElementById('bn-period-selector'), nps = document.getElementById('nq20-period-selector');
     if(sps) sps.onchange = (e) => { summaryPeriod = e.target.value; selectedPITQuarter = e.target.value.replace('q', ''); render(); };
