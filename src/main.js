@@ -211,23 +211,12 @@ function processBonusCSV(text) {
   let hIdx = rows.findIndex(r => r.some(c => c && c.toString().toLowerCase().includes('họ và tên')));
   if (hIdx === -1) hIdx = 0;
 
-  // Gộp tất cả các hàng tiêu đề từ hàng 0 đến hIdx để tìm cột chính xác
-  const combinedHeaders = Array(rows[hIdx].length).fill('');
-  for (let i = 0; i <= hIdx; i++) {
-    rows[i].forEach((cell, cellIdx) => {
-      if (cell) combinedHeaders[cellIdx] += ' ' + cell.toString().toLowerCase();
-    });
+  let nameIdx = 1; // Cột B
+  let amtIdx = 4; // Cột E
+  let contentIdx = -1;
+  if (rows[hIdx]) {
+    contentIdx = rows[hIdx].findIndex(c => c && c.toString().toLowerCase().includes('nội dung'));
   }
-
-  let nameIdx = combinedHeaders.findIndex(h => h.includes('họ và tên'));
-  let amtIdx = combinedHeaders.findIndex(h => h.includes('tiền thưởng') || h.includes('tổng số') || h.includes('thực lĩnh'));
-  
-  // Dự phòng cho bảng TKNH đặc thù của BV Than Uyên: Tiền thưởng thường ở cột I (Index 8)
-  if (amtIdx === -1) amtIdx = 8;
-  if (nameIdx === -1) nameIdx = 1; // Dự phòng cột B
-
-  const deptIdx = combinedHeaders.findIndex(h => h.includes('khoa') || h.includes('phòng') || h.includes('đơn vị'));
-  const contentIdx = combinedHeaders.findIndex(h => h.includes('nội dung') || h.includes('ghi chú'));
 
   const result = [];
   for (let i = hIdx + 1; i < rows.length; i++) {
@@ -244,9 +233,8 @@ function processBonusCSV(text) {
 
     result.push({
       name: name,
-      dept: deptIdx !== -1 ? row[deptIdx]?.toString().trim() : '',
       amount: parseVNNumber(row[amtIdx]),
-      content: contentIdx !== -1 ? row[contentIdx]?.toString().trim() : 'Thưởng NĐ73'
+      content: contentIdx !== -1 ? (row[contentIdx]?.toString().trim() || '') : ''
     });
   }
   return result;
@@ -256,7 +244,7 @@ async function loadData() {
   if (salaryData[selectedMonth] && salaryData[selectedMonth].length > 0) { render(); return; }
   isLoading = true; render();
   try {
-    const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(convertToCSVUrl(SHEET_CSV_URL))}`);
+    const res = await fetch(convertToCSVUrl(SHEET_CSV_URL));
     const text = await res.text();
     const parsed = processCSV(text);
     if (parsed.length) { salaryData[selectedMonth] = parsed; saveToLocal(); }
@@ -415,6 +403,18 @@ const SalaryTable = () => {
             </tr>
           </thead>
           <tbody>
+            ${filtered.length > 0 ? (() => {
+              const totals = filtered.reduce((acc, e) => {
+                (e.rawAmounts || Array(19).fill(0)).forEach((val, i) => { acc[i] = (acc[i] || 0) + val; });
+                return acc;
+              }, Array(19).fill(0));
+              return `<tr class="total-row" style="background-color: #eef2ff; font-weight: bold;">
+                <td class="sticky-col col-tt" colspan="3" style="text-align:center; text-transform:uppercase;">Tổng cộng</td>
+                ${viewMode === 'summary' ? '<td></td>' : ''}
+                <td colspan="9"></td>
+                ${totals.map((v, i) => `<td class="${i===8?'highlight-total':(i===18?'highlight-col':'')}">${fmt(v)}</td>`).join('')}
+              </tr>`;
+            })() : ''}
             ${filtered.map(e => `<tr>
               <td class="sticky-col col-tt">${e.id||''}</td><td class="sticky-col col-name" style="font-weight:600;">${e.name}</td><td class="sticky-col col-dept">${e.department||e.dept||''}</td>
               ${viewMode === 'summary' ? `<td style="text-align:center;">${e.months_count}</td>` : ''}
@@ -590,12 +590,32 @@ const BonusModule = () => {
       <div class="table-container">
         <table class="salary-detail-table">
           <thead>
-            <tr><th>STT</th><th>Họ tên</th><th>Khoa/Phòng</th><th>Nội dung</th><th>Số tiền</th></tr>
+            <tr>
+              <th>STT</th>
+              <th>Họ tên</th>
+              <th>Nội dung khen thưởng ${viewMode === 'monthly' ? `<button onclick="window.copyDownBonusContent()" title="Sao chép nội dung khen thưởng từ hàng 1 xuống toàn bộ" style="cursor:pointer;background:none;border:none;margin-left:0.5rem;">⬇️</button>` : ''}</th>
+              <th>Số tiền</th>
+            </tr>
           </thead>
           <tbody>
+            ${filtered.length > 0 ? `
+              <tr class="total-row" style="background-color: #eef2ff; font-weight: bold;">
+                <td colspan="3" style="text-align:center; text-transform:uppercase;">Tổng cộng</td>
+                <td class="highlight-total" style="color:var(--primary);">${fmt(filtered.reduce((sum, e) => sum + (e.amount || 0), 0))}</td>
+              </tr>
+            ` : ''}
             ${filtered.length > 0 
-              ? filtered.map((e, idx) => `<tr><td>${idx+1}</td><td>${e.name}</td><td>${e.dept||''}</td><td>${e.content||''}</td><td class="highlight-total">${fmt(e.amount)}</td></tr>`).join('')
-              : `<tr><td colspan="5" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu khen thưởng tháng ${selectedMonth}.<br><br><button class="btn btn-primary" onclick="document.getElementById('import-bonus-btn').click()">Import ngay</button></td></tr>`
+              ? filtered.map((e, idx) => `<tr>
+                  <td>${idx+1}</td>
+                  <td>${e.name}</td>
+                  <td>
+                    ${viewMode === 'monthly' 
+                      ? `<input type="text" class="content-input" value="${e.content||''}" onchange="window.updateBonusContent('${selectedMonth}', ${idx}, this.value)" style="width:100%; border:1px solid #ddd; padding:4px; border-radius:4px;">` 
+                      : (e.content||'')}
+                  </td>
+                  <td class="highlight-total">${fmt(e.amount)}</td>
+                </tr>`).join('')
+              : `<tr><td colspan="4" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu khen thưởng tháng ${selectedMonth}.<br><br><button class="btn btn-primary" onclick="document.getElementById('import-bonus-btn').click()">Import ngay</button></td></tr>`
             }
           </tbody>
         </table>
@@ -642,9 +662,14 @@ const OvertimeModule = () => {
         <table class="salary-detail-table">
           <thead><tr><th>STT</th><th>Họ tên</th><th>Tổng lĩnh</th></tr></thead>
           <tbody>
+            ${filtered.length > 0 ? `
+              <tr class="total-row" style="background-color: #eef2ff; font-weight: bold;">
+                <td colspan="2" style="text-align:center; text-transform:uppercase;">Tổng cộng</td>
+                <td style="color:var(--primary);">${fmt(filtered.reduce((sum, e) => sum + (e.amount || 0), 0))}</td>
+              </tr>
+            ` : ''}
             ${filtered.length > 0 
-              ? filtered.map((e, idx) => `<tr><td>${idx+1}</td><td>${e.name}</td><td>${fmt(e.amount)}</td></tr>`).join('') + 
-                `<tr class="total-row"><td colspan="2" style="text-align:center;font-weight:bold;text-transform:uppercase;">Tổng cộng</td><td style="font-weight:bold;color:var(--primary);">${fmt(filtered.reduce((sum, e) => sum + (e.amount || 0), 0))}</td></tr>`
+              ? filtered.map((e, idx) => `<tr><td>${idx+1}</td><td>${e.name}</td><td>${fmt(e.amount)}</td></tr>`).join('')
               : `<tr><td colspan="3" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu ngoài giờ.</td></tr>`
             }
           </tbody>
@@ -730,6 +755,13 @@ const NQ20Module = () => {
             </tr>
           </thead>
           <tbody>
+            ${filtered.length > 0 ? `
+              <tr class="total-row" style="background-color: #eef2ff; font-weight: bold;">
+                <td colspan="${viewMode === 'monthly' ? 6 : 4}" style="text-align:center; text-transform:uppercase;">Tổng cộng</td>
+                <td class="highlight-total" style="color:var(--primary);">${fmt(filtered.reduce((sum, e) => sum + (e.amount || 0), 0))}</td>
+                ${viewMode === 'monthly' ? '<td></td>' : ''}
+              </tr>
+            ` : ''}
             ${filtered.length > 0 
               ? filtered.map((e, idx) => {
                   if (viewMode === 'monthly') {
@@ -1665,8 +1697,12 @@ const render = () => {
       cfm.textContent = 'Đang xử lý...'; cfm.disabled = true;
       try {
         const finalUrl = convertToCSVUrl(u, g);
-        const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(finalUrl)}`);
+        const res = await fetch(finalUrl);
+        if (!res.ok) throw new Error(`Lỗi tải dữ liệu (${res.status}). Đảm bảo link đã được chia sẻ "Bất kỳ ai có đường liên kết".`);
         const text = await res.text();
+        if (text.trim().toLowerCase().startsWith('<!doctype html>') || text.trim().toLowerCase().startsWith('<html')) {
+          throw new Error('Dữ liệu trả về là trang web (HTML) chứ không phải file CSV. Vui lòng đảm bảo link Google Sheets đã được bật "Bất kỳ ai có đường liên kết".');
+        }
         if (type === 'salary') {
           const parsed = processCSV(text);
           if(!parsed.length) throw new Error('Dữ liệu không hợp lệ');
@@ -1714,6 +1750,7 @@ const render = () => {
       document.getElementById('import-title').textContent = 'Import NQ20';
       document.getElementById('import-url').value = localStorage.getItem('last_nq20_url') || 'https://docs.google.com/spreadsheets/d/1Imhhn8uEhS2_Wn_3TbQlohsrEUUai_EK6JVJfNUDboQ/edit';
       document.getElementById('import-gid').value = localStorage.getItem('last_nq20_gid') || '';
+      if (document.getElementById('import-content-group')) document.getElementById('import-content-group').style.display = 'none';
       cfm.setAttribute('data-type', 'nq20'); im.style.display = 'flex';
     };
 
@@ -2101,7 +2138,7 @@ window.exportBonusToExcel = function() {
       'STT': i + 1,
       'Họ tên': e.name,
       'Khoa/Phòng': e.dept,
-      'Nội dung': e.content || 'Thưởng NĐ73',
+      'Nội dung khen thưởng': e.content || 'Thưởng NĐ73',
       'Số tiền': e.amount
     }));
     if (!data.length) return alert('Không có dữ liệu!');
@@ -2299,7 +2336,7 @@ window.showReportPreview = function(type) {
           <tr>
             <th>TT</th><th>Họ và tên</th><th>Bộ phận</th>
             ${isSummary ? '<th>Số lần</th>' : ''}
-            <th>Nội dung</th>
+            <th>Nội dung khen thưởng</th>
             <th>Số tiền</th>
           </tr>
         </thead>
@@ -2575,6 +2612,23 @@ window.copyBonusFromPrevious = function() {
     saveToLocal();
     render();
     alert('Đã sao chép thành công!');
+  }
+};
+
+window.updateBonusContent = function(month, idx, value) {
+  if (bonusData[month] && bonusData[month][idx]) {
+    bonusData[month][idx].content = value;
+    saveToLocal();
+  }
+};
+
+window.copyDownBonusContent = function() {
+  if (!bonusData[selectedMonth] || bonusData[selectedMonth].length === 0) return;
+  const firstVal = bonusData[selectedMonth][0].content || '';
+  if (confirm(`Bạn có muốn sao chép nội dung khen thưởng "${firstVal}" cho toàn bộ danh sách tháng này?`)) {
+    bonusData[selectedMonth].forEach(e => e.content = firstVal);
+    saveToLocal();
+    render();
   }
 };
 
