@@ -369,6 +369,7 @@ const SalaryTable = () => {
     title = 'Tổng hợp Lương ' + (summaryPeriod === 'all' ? 'Cả năm' : 'Quý ' + summaryPeriod[1]);
   }
   const months = sortMonthsDesc(Object.keys(salaryData));
+  const displayMonths = months.includes(selectedMonth) ? months : sortMonthsDesc([...new Set([selectedMonth, ...months])]);
   const moneyHeaders = ['Lương chính', 'PC vượt khung', 'PC Khu vực', 'PC Chức vụ', 'PC Trách nhiệm', 'PC ưu đãi ngành', 'PC Độc hại', 'PC cấp ủy', 'Tổng cộng lương', 'Khấu trừ 10,5% BH', 'KT 10,5% BH CV', 'KT 10,5% BH VK', 'Trừ ốm LC', 'Trừ ốm VK', 'Trừ ốm CV', 'Trừ ốm TN', 'Trừ ốm ƯĐ', 'Trừ ốm ĐH', 'Tổng lĩnh'];
   return `
   <div class="fade-in">
@@ -381,7 +382,7 @@ const SalaryTable = () => {
             <button class="control-btn ${viewMode==='summary'?'active':''}" onclick="window.setViewMode('summary')">Tổng hợp</button>
           </div>
           ${viewMode === 'monthly' ? `
-            <select class="select-input" id="month-selector">${months.length?months.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
+            <select class="select-input" id="month-selector">${displayMonths.length?displayMonths.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
             <button class="btn btn-secondary" id="delete-salary-btn" style="color:#ef4444;font-size:0.85rem;">🗑️ Xóa</button>
           ` : `
             <select class="select-input" id="summary-period-selector">
@@ -568,6 +569,7 @@ const BonusModule = () => {
     title = 'Tổng hợp Khen thưởng ' + (summaryPeriod === 'all' ? 'Cả năm' : 'Quý ' + summaryPeriod[1]);
   }
   const months = sortMonthsDesc(Object.keys(bonusData));
+  const displayMonths = months.includes(selectedMonth) ? months : sortMonthsDesc([...new Set([selectedMonth, ...months])]);
   return `
   <div class="fade-in">
     ${Header(title)}
@@ -579,7 +581,7 @@ const BonusModule = () => {
             <button class="control-btn ${viewMode==='summary'?'active':''}" onclick="window.setViewMode('summary')">Tổng hợp</button>
           </div>
           ${viewMode === 'monthly' ? `
-            <select class="select-input" id="bn-month-selector">${months.length?months.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
+            <select class="select-input" id="bn-month-selector">${displayMonths.length?displayMonths.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
             ${(() => {
               const emps = bonusData[selectedMonth] || [];
               const uniqueContents = [...new Set(emps.map(e => e.content))].filter(Boolean);
@@ -659,6 +661,7 @@ const OvertimeModule = () => {
     title = 'Tổng hợp Ngoài giờ ' + (summaryPeriod === 'all' ? 'Cả năm' : 'Quý ' + summaryPeriod[1]);
   }
   const months = sortMonthsDesc(Object.keys(overtimeData));
+  const displayMonths = months.includes(selectedMonth) ? months : sortMonthsDesc([...new Set([selectedMonth, ...months])]);
   return `
   <div class="fade-in">
     ${Header(title)}
@@ -670,7 +673,7 @@ const OvertimeModule = () => {
             <button class="control-btn ${viewMode==='summary'?'active':''}" onclick="window.setViewMode('summary')">Tổng hợp</button>
           </div>
           ${viewMode === 'monthly' ? `
-            <select class="select-input" id="ot-month-selector">${months.length?months.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
+            <select class="select-input" id="ot-month-selector">${displayMonths.length?displayMonths.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
             <button class="btn btn-secondary" id="delete-ot-btn" style="color:#ef4444;font-size:0.85rem;">🗑️ Xóa</button>
           ` : `<select class="select-input" id="ot-period-selector"><option value="all" ${summaryPeriod==='all'?'selected':''}>Cả năm</option><option value="q1" ${summaryPeriod==='q1'?'selected':''}>Quý I</option><option value="q2" ${summaryPeriod==='q2'?'selected':''}>Quý II</option><option value="q3" ${summaryPeriod==='q3'?'selected':''}>Quý III</option><option value="q4" ${summaryPeriod==='q4'?'selected':''}>Quý IV</option></select>`}
         </div>
@@ -718,6 +721,7 @@ const NQ20Module = () => {
     title = 'Tổng hợp Đãi ngộ NQ20 ' + periodText;
   }
   const months = sortMonthsDesc([...new Set([...Object.keys(salaryData), ...Object.keys(nq20Data)])]);
+  const displayMonths = months.includes(selectedMonth) ? months : sortMonthsDesc([...new Set([selectedMonth, ...months])]);
   
   return `
   <div class="fade-in">
@@ -730,7 +734,7 @@ const NQ20Module = () => {
             <button class="control-btn ${viewMode==='summary'?'active':''}" onclick="window.setViewMode('summary')">Tổng hợp</button>
           </div>
           ${viewMode === 'monthly' ? `
-            <select class="select-input" id="nq20-month-selector">${months.length?months.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
+            <select class="select-input" id="nq20-month-selector">${displayMonths.length?displayMonths.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
             <button class="btn btn-secondary" onclick="window.initializeNQ20FromSalary()" style="font-size:0.85rem;" title="Lọc toàn bộ Bác sĩ từ bảng lương tháng hiện tại">Khởi tạo từ Bảng lương</button>
             <button class="btn btn-secondary" onclick="window.copyNQ20FromPrevious()" style="font-size:0.85rem;">Sao chép tháng trước</button>
             <button class="btn btn-secondary" id="delete-nq20-btn" style="color:#ef4444;font-size:0.85rem;">🗑️ Xóa</button>
