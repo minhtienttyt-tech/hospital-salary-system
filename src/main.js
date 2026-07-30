@@ -2724,7 +2724,14 @@ window.backupToCloud = async function() {
   localStorage.setItem('hospital_cloud_url', url);
   
   const payload = {
-    salaryData, overtimeData, bonusData, nq20Data, salaryHeaders, dependentOverrides, budgetPromotionData
+    salaryData, overtimeData, bonusData, nq20Data, salaryHeaders, dependentOverrides, budgetPromotionData,
+    pitData: {
+      q1: aggregatePITData('1'),
+      q2: aggregatePITData('2'),
+      q3: aggregatePITData('3'),
+      q4: aggregatePITData('4'),
+      all: aggregatePITData('all')
+    }
   };
   
   try {
