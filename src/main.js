@@ -2632,7 +2632,21 @@ window.doExport = function(format) {
       const container = document.getElementById('preview-container');
       const table = container ? container.querySelector('.report-table') : document.querySelector('.report-table');
       if (!table) { alert('Không tìm thấy bảng dữ liệu để xuất Excel!'); return; }
-      const wb = XLSX.utils.table_to_book(table, { sheet: "Bao Cao" });
+      
+      const clonedTable = table.cloneNode(true);
+      const cells = clonedTable.querySelectorAll('td, th');
+      cells.forEach(cell => {
+        const text = cell.innerText.trim();
+        if (/^-?\d{1,3}(\.\d{3})*$/.test(text) || text === '0') {
+          const num = parseInt(text.replace(/\./g, ''), 10);
+          if (!isNaN(num)) {
+            cell.setAttribute('data-t', 'n');
+            cell.setAttribute('data-v', num);
+          }
+        }
+      });
+
+      const wb = XLSX.utils.table_to_book(clonedTable, { sheet: "Bao Cao" });
       XLSX.writeFile(wb, `${fileName}.xlsx`);
     } catch (err) {
       console.error('Lỗi xuất Excel:', err);
