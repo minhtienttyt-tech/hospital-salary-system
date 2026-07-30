@@ -10,6 +10,7 @@ let salaryData = {};
 let overtimeData = {};
 let bonusData = {};
 let nq20Data = {};
+let selectedBonusContent = 'all';
 let salaryHeaders = [];
 let dependentOverrides = {}; 
 let isLoading = false;
@@ -85,12 +86,17 @@ window.deleteNQ20Month = function() {
 window.deleteBonusMonth = function() {
   const ms = document.getElementById('bn-month-selector') || document.getElementById('month-selector');
   if(ms) selectedMonth = ms.value;
-  console.log('Attempting to delete Bonus for:', selectedMonth);
-  if (confirm('Xóa dữ liệu khen thưởng tháng ' + selectedMonth + '?')) {
-    delete bonusData[selectedMonth];
-    saveToLocal();
-    render();
-    console.log('Bonus deleted successfully');
+  if (selectedBonusContent !== 'all') {
+    if (confirm('Xóa dữ liệu "' + selectedBonusContent + '" của tháng ' + selectedMonth + '?')) {
+      bonusData[selectedMonth] = bonusData[selectedMonth].filter(e => e.content !== selectedBonusContent);
+      selectedBonusContent = 'all';
+      saveToLocal(); render();
+    }
+  } else {
+    if (confirm('Xóa TẤT CẢ dữ liệu khen thưởng tháng ' + selectedMonth + '?')) {
+      delete bonusData[selectedMonth];
+      saveToLocal(); render();
+    }
   }
 };
 
@@ -549,7 +555,11 @@ const BonusModule = () => {
   let title = '';
   if (viewMode === 'monthly') {
     const emps = bonusData[selectedMonth] || [];
-    filtered = searchFilter ? emps.filter(e => e.name.toLowerCase().includes(searchFilter.toLowerCase())) : emps;
+    let filteredEmps = emps;
+    if (selectedBonusContent !== 'all') {
+      filteredEmps = emps.filter(e => e.content === selectedBonusContent);
+    }
+    filtered = searchFilter ? filteredEmps.filter(e => e.name.toLowerCase().includes(searchFilter.toLowerCase())) : filteredEmps;
     title = `Danh sách Khen thưởng ${selectedMonth}`;
   } else {
     const months = getMonthsInPeriod(summaryPeriod);
@@ -570,6 +580,17 @@ const BonusModule = () => {
           </div>
           ${viewMode === 'monthly' ? `
             <select class="select-input" id="bn-month-selector">${months.length?months.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
+            ${(() => {
+              const emps = bonusData[selectedMonth] || [];
+              const uniqueContents = [...new Set(emps.map(e => e.content))].filter(Boolean);
+              if (uniqueContents.length > 0) {
+                return `<select class="select-input" id="bn-content-selector" style="max-width:200px;">
+                  <option value="all">Tất cả nội dung</option>
+                  ${uniqueContents.map(c => `<option value="${c}" ${selectedBonusContent===c?'selected':''}>${c}</option>`).join('')}
+                </select>`;
+              }
+              return '';
+            })()}
             <button class="btn btn-secondary" onclick="window.copyBonusFromPrevious()" style="font-size:0.85rem;">Sao chép tháng trước</button>
             <button class="btn btn-secondary" id="delete-bonus-btn" style="color:#ef4444;font-size:0.85rem;">🗑️ Xóa</button>
           ` : `
@@ -1650,7 +1671,14 @@ const render = () => {
         <div class="card modal-content" style="max-width:500px;">
           <h2 id="import-title">Import dữ liệu</h2>
           <div style="margin: 1rem 0;"><label>Tên tháng (MM/YYYY):</label><input type="text" id="import-month-name" class="select-input" style="width:100%;" value="${selectedMonth}"></div>
-          <div id="import-bonus-content-container" style="margin-bottom: 1rem; display:none;"><label>Nội dung khen thưởng (Áp dụng chung):</label><input type="text" id="import-bonus-content" class="select-input" style="width:100%;" placeholder="VD: Thưởng lễ 30/4"></div>
+          <div id="import-bonus-content-container" style="margin-bottom: 1rem; display:none;">
+            <label>Nội dung khen thưởng (Áp dụng chung):</label>
+            <input type="text" id="import-bonus-content" class="select-input" style="width:100%; margin-bottom: 0.5rem;" placeholder="VD: Thưởng lễ 30/4">
+            <label style="display:flex; align-items:center; gap: 0.5rem; font-size: 0.9rem; cursor:pointer; margin-top: 0.5rem;">
+              <input type="checkbox" id="import-append-bonus" checked>
+              Giữ lại dữ liệu khen thưởng cũ của tháng này (Nối tiếp dữ liệu)
+            </label>
+          </div>
           <div style="margin-bottom: 1rem;"><label>Link Google Sheets:</label><input type="text" id="import-url" class="select-input" style="width:100%;"></div>
           <div style="margin-bottom: 1.5rem;"><label>ID của Sheet (GID):</label><input type="text" id="import-gid" class="select-input" style="width:100%;"></div>
           <div style="display:flex;gap:1rem;justify-content:flex-end;"><button class="btn btn-secondary" id="close-modal">Hủy</button><button class="btn btn-primary" id="confirm-import">Bắt đầu Import</button></div>
@@ -1674,7 +1702,9 @@ const render = () => {
     document.querySelectorAll('.nav-item[data-tab]').forEach(i => i.onclick = () => { currentTab = i.dataset.tab; render(); });
     const si = document.getElementById('search-input'); if(si){ si.value = searchFilter; si.oninput = (e) => { searchFilter = e.target.value; render(); } }
     const ms = document.getElementById('month-selector') || document.getElementById('ot-month-selector') || document.getElementById('bn-month-selector') || document.getElementById('nq20-month-selector');
-    if(ms) ms.onchange = (e) => { selectedMonth = e.target.value; render(); }
+    if(ms) ms.onchange = (e) => { selectedMonth = e.target.value; selectedBonusContent = 'all'; render(); }
+    const bcs = document.getElementById('bn-content-selector');
+    if(bcs) bcs.onchange = (e) => { selectedBonusContent = e.target.value; render(); }
     const pqs = document.getElementById('pit-quarter-selector'); if(pqs) pqs.onchange = (e) => { selectedPITQuarter = e.target.value; render(); }
     
     document.querySelectorAll('.npt-input').forEach(input => {
@@ -1739,7 +1769,12 @@ const render = () => {
         } else if (type === 'bonus') {
           const parsed = processBonusCSV(text, defaultContent);
           if(!parsed.length) throw new Error('Dữ liệu không hợp lệ');
-          bonusData[m] = parsed; 
+          const isAppend = document.getElementById('import-append-bonus') && document.getElementById('import-append-bonus').checked;
+          if (isAppend && bonusData[m]) {
+            bonusData[m] = bonusData[m].concat(parsed);
+          } else {
+            bonusData[m] = parsed; 
+          }
         } else if (type === 'nq20') {
           const parsed = processNQ20CSV(text);
           if(!parsed.length) throw new Error('Dữ liệu không hợp lệ');
