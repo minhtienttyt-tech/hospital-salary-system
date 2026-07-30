@@ -820,9 +820,23 @@ function processOvertimeCSV(text) {
   }
 
   let nameIdx = combinedHeaders.findIndex(h => h.includes('họ và tên') || h.includes('họ tên'));
-  let amtIdx = combinedHeaders.findIndex(h => h.includes('thực lĩnh') || h.includes('tổng số') || h.includes('số tiền') || h.includes('thành tiền'));
+  let amtIdx = combinedHeaders.findIndex(h => h.includes('tổng lĩnh') || h.includes('tong linh') || h.includes('thực lĩnh') || h.includes('tổng số') || h.includes('số tiền') || h.includes('thành tiền') || h.includes('tổng cộng tiền'));
   
-  if (amtIdx === -1) amtIdx = 10;
+  // Nếu không tìm thấy header cột tiền, tìm cột cuối cùng có dữ liệu số (thường là cột tổng)
+  if (amtIdx === -1) {
+    // Thử tìm cột cuối cùng chứa dữ liệu số từ dòng dữ liệu đầu tiên
+    const firstDataRow = rows[hIdx + 1];
+    if (firstDataRow) {
+      for (let c = firstDataRow.length - 1; c >= 0; c--) {
+        const val = firstDataRow[c]?.toString().replace(/[.,\s]/g, '');
+        if (val && !isNaN(val) && parseInt(val) > 0) {
+          amtIdx = c;
+          break;
+        }
+      }
+    }
+  }
+  if (amtIdx === -1) amtIdx = rows[hIdx].length - 1; // Fallback: cột cuối cùng
   if (nameIdx === -1) nameIdx = 1;
 
   const result = [];
@@ -840,11 +854,12 @@ function processOvertimeCSV(text) {
     // Bỏ hậu tố phòng ban trong ngoặc, vd: Lê Thị Lan (KT) -> Lê Thị Lan
     name = name.replace(/\s*\([^)]+\)\s*$/, '');
 
-    const amount = parseVNNumber(row[amtIdx]) || parseVNNumber(row[10]) || parseVNNumber(row[20]);
+    const amount = parseVNNumber(row[amtIdx]) || parseVNNumber(row[rows[hIdx].length - 1]) || parseVNNumber(row[19]) || parseVNNumber(row[10]);
     result.push({ name: name, amount: amount });
   }
   return result;
 }
+
 
 function processNQ20CSV(text) {
   const rows = Papa.parse(text, { skipEmptyLines: true }).data;
