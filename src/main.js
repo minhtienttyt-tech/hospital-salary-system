@@ -2517,12 +2517,13 @@ window.showReportPreview = function(type) {
 };
 
 window.doExport = function(format) {
-  if (!previewData) return;
+  if (!previewData) { alert('Không có dữ liệu xem trước để xuất!'); return; }
   const { type, title, subTitle } = previewData;
   const fileName = `${title}_${subTitle}`.replace(/[\s/]+/g, '_');
   
   if (format === 'pdf') {
     const element = document.getElementById('preview-container');
+    if (!element) { alert('Không tìm thấy nội dung xem trước!'); return; }
     const opt = {
       margin: [10, 5, 10, 5],
       filename: `${fileName}.pdf`,
@@ -2532,10 +2533,20 @@ window.doExport = function(format) {
     };
     html2pdf().set(opt).from(element).save();
   } else {
-    const table = document.querySelector('.report-table');
-    if(!table) return;
-    const wb = XLSX.utils.table_to_book(table, { sheet: "Bao Cao" });
-    XLSX.writeFile(wb, `${fileName}.xlsx`);
+    try {
+      if (typeof XLSX === 'undefined') {
+        alert('Thư viện XLSX chưa được tải. Vui lòng kiểm tra kết nối mạng và tải lại trang.');
+        return;
+      }
+      const container = document.getElementById('preview-container');
+      const table = container ? container.querySelector('.report-table') : document.querySelector('.report-table');
+      if (!table) { alert('Không tìm thấy bảng dữ liệu để xuất Excel!'); return; }
+      const wb = XLSX.utils.table_to_book(table, { sheet: "Bao Cao" });
+      XLSX.writeFile(wb, `${fileName}.xlsx`);
+    } catch (err) {
+      console.error('Lỗi xuất Excel:', err);
+      alert('Lỗi khi xuất file Excel: ' + err.message);
+    }
   }
 };
 
