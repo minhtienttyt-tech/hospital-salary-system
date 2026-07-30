@@ -2544,6 +2544,7 @@ window.showReportPreview = function(type) {
           <tr>
             <th>Họ và tên</th><th>Bộ phận</th>
             ${moneyHeaders.slice(0, 9).map(h => `<th>${h}</th>`).join('')}
+            <th>Khấu trừ 10,5% BHXH, BHYT, BHTN</th>
             <th>Ngoài giờ</th>
             <th>Thưởng</th>
             <th>Thu nhập tính thuế</th>
@@ -2551,9 +2552,11 @@ window.showReportPreview = function(type) {
         </thead>
         <tbody>
           ${emps.map(e => {
+            const bhTotal = (e.rawAmounts[9] || 0) + (e.rawAmounts[10] || 0) + (e.rawAmounts[11] || 0);
             return `<tr>
               <td>${e.name}</td><td>${e.dept}</td>
               ${e.rawAmounts.slice(0, 9).map(v => `<td>${fmt(v)}</td>`).join('')}
+              <td>${fmt(bhTotal)}</td>
               <td>${fmt(e.otAmount)}</td>
               <td>${fmt(e.bonusAmount)}</td>
               <td>${fmt(e.taxable > 0 ? e.taxable : 0)}</td>
