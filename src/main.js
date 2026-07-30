@@ -481,11 +481,11 @@ function aggregatePITData(quarter) {
         }
       }
 
-      const otEntry = (overtimeData[month] || []).find(ot => normalize(ot.name) === nName);
-      all[name].otAmount += otEntry ? otEntry.amount : 0;
+      const otEntries = (overtimeData[month] || []).filter(ot => normalize(ot.name) === nName);
+      all[name].otAmount += otEntries.reduce((sum, ot) => sum + (ot.amount || 0), 0);
 
-      const bnEntry = (bonusData[month] || []).find(bn => normalize(bn.name) === nName);
-      all[name].bonusAmount += bnEntry ? bnEntry.amount : 0;
+      const bnEntries = (bonusData[month] || []).filter(bn => normalize(bn.name) === nName);
+      all[name].bonusAmount += bnEntries.reduce((sum, bn) => sum + (bn.amount || 0), 0);
     });
   });
 
