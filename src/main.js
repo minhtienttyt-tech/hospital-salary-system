@@ -290,6 +290,7 @@ const Sidebar = () => `
     </ul>
     <div class="sidebar-footer">
       <button id="theme-toggle" class="icon-btn" title="Đổi màu nền"><i data-lucide="moon"></i></button>
+      <button onclick="window.showCloudSyncModal()" class="icon-btn" title="Đồng bộ Đám mây (Cloud Sync)" style="color:var(--primary);"><i data-lucide="cloud"></i></button>
       <button onclick="window.emergencyReset()" class="icon-btn" title="Khôi phục hệ thống" style="color:#ef4444;"><i data-lucide="refresh-cw"></i></button>
     </div>
   </aside>`;
@@ -1700,6 +1701,24 @@ const render = () => {
           </div>
           <div id="preview-container" class="preview-scroll-area"></div>
         </div>
+      </div>
+      
+      <div id="cloud-sync-modal" class="modal-overlay" style="display:none;">
+        <div class="card modal-content" style="max-width:500px;">
+          <h2>Đồng bộ Đám mây (Google Sheets)</h2>
+          <div style="margin-top:1rem;">
+            <label style="display:block; margin-bottom:0.5rem;">Google Apps Script Web App URL:</label>
+            <input type="text" id="cloud-sync-url" class="select-input" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;" value="${localStorage.getItem('hospital_cloud_url') || ''}">
+            <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;">Nhập đường dẫn Web App của Google Apps Script để kết nối với cơ sở dữ liệu trên mây của bạn.</p>
+          </div>
+          <div style="display:flex; justify-content:space-between; gap:1rem; margin-top:1.5rem;">
+            <button class="btn btn-secondary" onclick="document.getElementById('cloud-sync-modal').style.display='none'">Đóng</button>
+            <div style="display:flex; gap:0.5rem;">
+              <button class="btn btn-secondary" onclick="window.restoreFromCloud()" style="color:var(--primary);"><i data-lucide="download-cloud"></i> Phục hồi</button>
+              <button class="btn btn-primary" onclick="window.backupToCloud()"><i data-lucide="upload-cloud"></i> Sao lưu</button>
+            </div>
+          </div>
+        </div>
       </div>`;
     
     lucide.createIcons();
@@ -2689,6 +2708,94 @@ window.copyDownBonusContent = function() {
     bonusData[selectedMonth].forEach(e => e.content = firstVal);
     saveToLocal();
     render();
+  }
+};
+
+window.showCloudSyncModal = function() {
+  const modal = document.getElementById('cloud-sync-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+};
+
+window.backupToCloud = async function() {
+  const url = document.getElementById('cloud-sync-url').value.trim();
+  if (!url) return alert('Vui lòng nhập đường dẫn Web App URL!');
+  localStorage.setItem('hospital_cloud_url', url);
+  
+  const payload = {
+    salaryData, overtimeData, bonusData, nq20Data, salaryHeaders, dependentOverrides, budgetPromotionData
+  };
+  
+  try {
+    const btn = document.querySelector('#cloud-sync-modal .btn-primary');
+    btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Đang sao lưu...';
+    btn.disabled = true;
+    lucide.createIcons();
+    
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // Use text/plain to bypass CORS preflight
+      body: JSON.stringify(payload)
+    });
+    const result = await res.json();
+    if (result.status === 'success') {
+      alert('Sao lưu dữ liệu lên Cloud thành công!');
+      document.getElementById('cloud-sync-modal').style.display = 'none';
+    } else {
+      alert('Lỗi sao lưu: ' + result.message);
+    }
+  } catch (err) {
+    alert('Không thể kết nối đến Cloud. Vui lòng kiểm tra lại URL hoặc kết nối mạng! Lỗi: ' + err.message);
+  } finally {
+    const btn = document.querySelector('#cloud-sync-modal .btn-primary');
+    btn.innerHTML = '<i data-lucide="upload-cloud"></i> Sao lưu';
+    btn.disabled = false;
+    lucide.createIcons();
+  }
+};
+
+window.restoreFromCloud = async function() {
+  const url = document.getElementById('cloud-sync-url').value.trim();
+  if (!url) return alert('Vui lòng nhập đường dẫn Web App URL!');
+  localStorage.setItem('hospital_cloud_url', url);
+  
+  if (!confirm('CẢNH BÁO: Phục hồi từ Cloud sẽ GHI ĐÈ toàn bộ dữ liệu hiện tại trên máy của bạn. Bạn có chắc chắn muốn tiếp tục?')) return;
+  
+  try {
+    const btns = document.querySelectorAll('#cloud-sync-modal .btn-secondary');
+    const restoreBtn = btns[1];
+    restoreBtn.innerHTML = '<i data-lucide="loader" class="spin"></i> Đang tải...';
+    restoreBtn.disabled = true;
+    lucide.createIcons();
+    
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (data.salaryData) {
+      localStorage.setItem('hospital_salary_data', JSON.stringify(data.salaryData));
+      localStorage.setItem('hospital_overtime_data', JSON.stringify(data.overtimeData || {}));
+      localStorage.setItem('hospital_bonus_data', JSON.stringify(data.bonusData || {}));
+      localStorage.setItem('hospital_nq20_data', JSON.stringify(data.nq20Data || {}));
+      if (data.salaryHeaders) localStorage.setItem('hospital_salary_headers', JSON.stringify(data.salaryHeaders));
+      if (data.dependentOverrides) localStorage.setItem('hospital_dependent_overrides', JSON.stringify(data.dependentOverrides));
+      if (data.budgetPromotionData) localStorage.setItem('hospital_budget_promotion_data', JSON.stringify(data.budgetPromotionData));
+      
+      alert('Phục hồi dữ liệu thành công! Hệ thống sẽ khởi động lại để cập nhật.');
+      window.location.reload();
+    } else {
+      alert('Không tìm thấy dữ liệu hợp lệ trên Cloud! Có thể URL không đúng hoặc Google Sheet bị trống.');
+    }
+  } catch (err) {
+    alert('Không thể tải dữ liệu từ Cloud. Vui lòng kiểm tra lại URL hoặc kết nối mạng! Lỗi: ' + err.message);
+  } finally {
+    const btns = document.querySelectorAll('#cloud-sync-modal .btn-secondary');
+    const restoreBtn = btns[1];
+    if (restoreBtn) {
+      restoreBtn.innerHTML = '<i data-lucide="download-cloud"></i> Phục hồi';
+      restoreBtn.disabled = false;
+      lucide.createIcons();
+    }
   }
 };
 
