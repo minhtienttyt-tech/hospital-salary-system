@@ -998,26 +998,260 @@ function processNQ20CSV(text) {
   return result;
 }
 
+function getPreviousMonth(monthStr) {
+  if (!monthStr || monthStr.length !== 7) return null;
+  let [m, y] = monthStr.split('/').map(Number);
+  m -= 1;
+  if (m === 0) {
+    m = 12;
+    y -= 1;
+  }
+  return `${m.toString().padStart(2, '0')}/${y}`;
+}
+
 const Dashboard = () => {
   const sd = (salaryData[selectedMonth] || []).filter(isRealEmployee);
   const od = (overtimeData[selectedMonth] || []);
   const bd = (bonusData[selectedMonth] || []);
   const nd = (nq20Data[selectedMonth] || []);
+  
   const totalSalary = sd.reduce((s, e) => s + e.total, 0);
   const totalOT = od.reduce((s, e) => s + (e.amount || 0), 0);
   const totalBonus = bd.reduce((s, e) => s + (e.amount || 0), 0);
   const totalNQ20 = nd.reduce((s, e) => s + (e.amount || 0), 0);
   const totalNet = totalSalary + totalOT + totalBonus + totalNQ20;
+
+  const prevMonth = getPreviousMonth(selectedMonth);
+  let prevTotalNet = 0, prevTotalOT = 0, prevTotalBonus = 0, prevTotalNQ20 = 0;
+  if (prevMonth) {
+    const psd = (salaryData[prevMonth] || []).filter(isRealEmployee);
+    const pod = (overtimeData[prevMonth] || []);
+    const pbd = (bonusData[prevMonth] || []);
+    const pnd = (nq20Data[prevMonth] || []);
+    const pSal = psd.reduce((s, e) => s + e.total, 0);
+    prevTotalOT = pod.reduce((s, e) => s + (e.amount || 0), 0);
+    prevTotalBonus = pbd.reduce((s, e) => s + (e.amount || 0), 0);
+    prevTotalNQ20 = pnd.reduce((s, e) => s + (e.amount || 0), 0);
+    prevTotalNet = pSal + prevTotalOT + prevTotalBonus + prevTotalNQ20;
+  }
+
+  const renderKPI = (title, current, prev, isMain = false) => {
+    let diffHtml = '';
+    if (prevMonth && prev > 0) {
+      const diff = current - prev;
+      const pct = (diff / prev * 100).toFixed(1);
+      const absDiff = Math.abs(diff);
+      if (diff > 0) {
+        diffHtml = `<div class="kpi-comparison up"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> +${fmt(absDiff)} (${pct}%) sv tháng trước</div>`;
+      } else if (diff < 0) {
+        diffHtml = `<div class="kpi-comparison down"><i data-lucide="trending-down" style="width:14px;height:14px;"></i> -${fmt(absDiff)} (${Math.abs(pct)}%) sv tháng trước</div>`;
+      } else {
+        diffHtml = `<div class="kpi-comparison neutral"><i data-lucide="minus" style="width:14px;height:14px;"></i> Không đổi</div>`;
+      }
+    } else if (prevMonth && prev === 0 && current > 0) {
+      diffHtml = `<div class="kpi-comparison up"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> Tăng 100% sv tháng trước</div>`;
+    }
+    
+    return `
+      <div class="dashboard-panel col-span-3" ${isMain ? 'style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05)); border-color: rgba(59, 130, 246, 0.3);"' : ''}>
+        <div class="kpi-container">
+          <div class="kpi-title">${title}</div>
+          <div class="kpi-value" ${isMain ? 'style="color: var(--primary);"' : ''}>${fmt(current)}</div>
+          ${diffHtml}
+        </div>
+      </div>
+    `;
+  };
+
   return `
   <div class="fade-in">
     ${Header('Tổng quan ' + selectedMonth)}
-    <div class="stats-grid">
-      <div class="card stat-card"><span class="stat-label">Tổng quỹ lương thực nhận</span><span class="stat-value">${fmt(totalNet)}</span></div>
-      <div class="card stat-card"><span class="stat-label">Tổng Trực & Ngoài giờ</span><span class="stat-value">${fmt(totalOT)}</span></div>
-      <div class="card stat-card"><span class="stat-label">Tổng Khen thưởng</span><span class="stat-value">${fmt(totalBonus)}</span></div>
-      <div class="card stat-card"><span class="stat-label">Tổng Đãi ngộ NQ20</span><span class="stat-value">${fmt(totalNQ20)}</span></div>
+    <div class="dashboard-grid">
+      <!-- Row 1: KPIs -->
+      ${renderKPI('Tổng thu nhập thực nhận', totalNet, prevTotalNet, true)}
+      ${renderKPI('Tổng Trực & Ngoài giờ', totalOT, prevTotalOT)}
+      ${renderKPI('Tổng Khen thưởng', totalBonus, prevTotalBonus)}
+      ${renderKPI('Tổng Đãi ngộ NQ20', totalNQ20, prevTotalNQ20)}
+      
+      <!-- Row 2: Charts -->
+      <div class="dashboard-panel col-span-4">
+        <div class="panel-header">Cơ cấu thu nhập</div>
+        <div id="chart-income-structure" class="chart-container"></div>
+      </div>
+      <div class="dashboard-panel col-span-8">
+        <div class="panel-header">Top Khoa/Phòng có tổng quỹ lương cao nhất</div>
+        <div id="chart-top-dept-salary" class="chart-container"></div>
+      </div>
+
+      <!-- Row 3: Stacked Bar -->
+      <div class="dashboard-panel col-span-12">
+        <div class="panel-header">Chi tiết Lương, Trực & Thưởng theo Khoa/Phòng</div>
+        <div id="chart-dept-breakdown" class="chart-container large"></div>
+      </div>
     </div>
   </div>`;
+};
+
+window.renderDashboardCharts = () => {
+  if (typeof echarts === 'undefined') return;
+
+  const sd = (salaryData[selectedMonth] || []).filter(isRealEmployee);
+  const od = (overtimeData[selectedMonth] || []);
+  const bd = (bonusData[selectedMonth] || []);
+  const nd = (nq20Data[selectedMonth] || []);
+  
+  const totalSalary = sd.reduce((s, e) => s + e.total, 0);
+  const totalOT = od.reduce((s, e) => s + (e.amount || 0), 0);
+  const totalBonus = bd.reduce((s, e) => s + (e.amount || 0), 0);
+  const totalNQ20 = nd.reduce((s, e) => s + (e.amount || 0), 0);
+
+  const colors = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6'];
+
+  const incomeChartEl = document.getElementById('chart-income-structure');
+  let incomeChart = null;
+  if (incomeChartEl) {
+    incomeChart = echarts.init(incomeChartEl);
+    incomeChart.setOption({
+      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      legend: { bottom: '0%', left: 'center', textStyle: { color: '#94a3b8' } },
+      color: colors,
+      series: [
+        {
+          name: 'Thu nhập',
+          type: 'pie',
+          radius: ['45%', '70%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 5,
+            borderColor: 'var(--card-bg)',
+            borderWidth: 2
+          },
+          label: { show: false, position: 'center' },
+          emphasis: {
+            label: { show: true, fontSize: 16, fontWeight: 'bold', color: 'var(--foreground)' }
+          },
+          labelLine: { show: false },
+          data: [
+            { value: totalSalary, name: 'Lương' },
+            { value: totalOT, name: 'Trực & NG' },
+            { value: totalBonus, name: 'Khen thưởng' },
+            { value: totalNQ20, name: 'NQ20' }
+          ].filter(item => item.value > 0)
+        }
+      ]
+    });
+  }
+
+  const depts = {};
+  sd.forEach(e => {
+    const d = e.department || e.dept || 'Khác';
+    if (!depts[d]) depts[d] = { salary: 0, ot: 0, bonus: 0 };
+    depts[d].salary += e.total;
+  });
+  od.forEach(e => {
+    const d = e.department || e.dept || 'Khác';
+    if (!depts[d]) depts[d] = { salary: 0, ot: 0, bonus: 0 };
+    depts[d].ot += (e.amount || 0);
+  });
+  bd.forEach(e => {
+    const d = e.department || e.dept || 'Khác';
+    if (!depts[d]) depts[d] = { salary: 0, ot: 0, bonus: 0 };
+    depts[d].bonus += (e.amount || 0);
+  });
+
+  const deptList = Object.keys(depts).map(d => ({
+    name: d,
+    salary: depts[d].salary,
+    ot: depts[d].ot,
+    bonus: depts[d].bonus,
+    total: depts[d].salary + depts[d].ot + depts[d].bonus
+  })).sort((a, b) => b.total - a.total);
+
+  const topDeptChartEl = document.getElementById('chart-top-dept-salary');
+  let topDeptChart = null;
+  if (topDeptChartEl) {
+    const top5 = deptList.slice(0, 5);
+    topDeptChart = echarts.init(topDeptChartEl);
+    topDeptChart.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      grid: { left: '3%', right: '8%', bottom: '3%', top: '5%', containLabel: true },
+      xAxis: { type: 'value', axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } } },
+      yAxis: { type: 'category', data: top5.map(d => d.name).reverse(), axisLabel: { color: '#cbd5e1', width: 100, overflow: 'truncate' } },
+      series: [
+        {
+          name: 'Tổng thu nhập',
+          type: 'bar',
+          data: top5.map(d => d.total).reverse(),
+          label: {
+            show: true,
+            position: 'right',
+            color: '#f8fafc',
+            formatter: (params) => (params.value / 1000000).toFixed(1) + ' Tr'
+          },
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
+              { offset: 0, color: '#3b82f6' },
+              { offset: 1, color: '#1e3a8a' }
+            ]),
+            borderRadius: [0, 4, 4, 0]
+          }
+        }
+      ]
+    });
+  }
+
+  const breakdownChartEl = document.getElementById('chart-dept-breakdown');
+  let breakdownChart = null;
+  if (breakdownChartEl) {
+    breakdownChart = echarts.init(breakdownChartEl);
+    const top15 = deptList.slice(0, 15);
+    breakdownChart.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { data: ['Lương', 'Trực & NG', 'Khen thưởng'], textStyle: { color: '#94a3b8' }, top: 0 },
+      grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: top15.map(d => d.name),
+        axisLabel: { color: '#cbd5e1', interval: 0, rotate: 30, width: 90, overflow: 'truncate' }
+      },
+      yAxis: { type: 'value', axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } } },
+      series: [
+        {
+          name: 'Lương',
+          type: 'bar',
+          stack: 'total',
+          emphasis: { focus: 'series' },
+          itemStyle: { color: '#3b82f6' },
+          data: top15.map(d => d.salary)
+        },
+        {
+          name: 'Trực & NG',
+          type: 'bar',
+          stack: 'total',
+          emphasis: { focus: 'series' },
+          itemStyle: { color: '#f59e0b' },
+          data: top15.map(d => d.ot)
+        },
+        {
+          name: 'Khen thưởng',
+          type: 'bar',
+          stack: 'total',
+          emphasis: { focus: 'series' },
+          itemStyle: { color: '#10b981' },
+          data: top15.map(d => d.bonus)
+        }
+      ]
+    });
+  }
+
+  const resizeHandler = () => {
+    if (incomeChart) incomeChart.resize();
+    if (topDeptChart) topDeptChart.resize();
+    if (breakdownChart) breakdownChart.resize();
+  };
+  window.removeEventListener('resize', window._echartResizeHandler);
+  window._echartResizeHandler = resizeHandler;
+  window.addEventListener('resize', resizeHandler);
 };
 
 const BudgetSalaryTab = () => {
@@ -1722,6 +1956,9 @@ const render = () => {
       </div>`;
     
     lucide.createIcons();
+    if (currentTab === 'dashboard' && window.renderDashboardCharts) {
+      setTimeout(() => window.renderDashboardCharts(), 0);
+    }
     document.querySelectorAll('.nav-item[data-tab]').forEach(i => i.onclick = () => { currentTab = i.dataset.tab; render(); });
     const si = document.getElementById('search-input'); if(si){ si.value = searchFilter; si.oninput = (e) => { searchFilter = e.target.value; render(); } }
     const ms = document.getElementById('month-selector') || document.getElementById('ot-month-selector') || document.getElementById('bn-month-selector') || document.getElementById('nq20-month-selector');
