@@ -1035,58 +1035,100 @@ const Dashboard = () => {
     prevTotalNet = pSal + prevTotalOT + prevTotalBonus + prevTotalNQ20;
   }
 
-  const renderKPI = (title, current, prev, isMain = false) => {
+  const kpiColors = [
+    { bg: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(37,99,235,0.04))', border: 'rgba(59,130,246,0.35)', color: '#3b82f6', icon: '💰' },
+    { bg: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(217,119,6,0.04))', border: 'rgba(245,158,11,0.35)', color: '#f59e0b', icon: '⏰' },
+    { bg: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.04))', border: 'rgba(16,185,129,0.35)', color: '#10b981', icon: '🏆' },
+    { bg: 'linear-gradient(135deg, rgba(139,92,246,0.12), rgba(109,40,217,0.04))', border: 'rgba(139,92,246,0.35)', color: '#8b5cf6', icon: '🎖️' },
+  ];
+
+  const renderKPI = (title, current, prev, idx) => {
+    const c = kpiColors[idx];
     let diffHtml = '';
     if (prevMonth && prev > 0) {
       const diff = current - prev;
       const pct = (diff / prev * 100).toFixed(1);
       const absDiff = Math.abs(diff);
-      if (diff > 0) {
-        diffHtml = `<div class="kpi-comparison up"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> +${fmt(absDiff)} (${pct}%) sv tháng trước</div>`;
-      } else if (diff < 0) {
-        diffHtml = `<div class="kpi-comparison down"><i data-lucide="trending-down" style="width:14px;height:14px;"></i> -${fmt(absDiff)} (${Math.abs(pct)}%) sv tháng trước</div>`;
-      } else {
-        diffHtml = `<div class="kpi-comparison neutral"><i data-lucide="minus" style="width:14px;height:14px;"></i> Không đổi</div>`;
-      }
+      if (diff > 0) diffHtml = `<div class="kpi-comparison up"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> +${fmt(absDiff)} (${pct}%)</div>`;
+      else if (diff < 0) diffHtml = `<div class="kpi-comparison down"><i data-lucide="trending-down" style="width:14px;height:14px;"></i> -${fmt(absDiff)} (${Math.abs(pct)}%)</div>`;
+      else diffHtml = `<div class="kpi-comparison neutral"><i data-lucide="minus" style="width:14px;height:14px;"></i> Không đổi</div>`;
     } else if (prevMonth && prev === 0 && current > 0) {
-      diffHtml = `<div class="kpi-comparison up"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> Tăng 100% sv tháng trước</div>`;
+      diffHtml = `<div class="kpi-comparison up"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> Mới phát sinh</div>`;
     }
-    
     return `
-      <div class="dashboard-panel col-span-3" ${isMain ? 'style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05)); border-color: rgba(59, 130, 246, 0.3);"' : ''}>
+      <div class="dashboard-panel col-span-3" style="background:${c.bg}; border-color:${c.border};">
         <div class="kpi-container">
-          <div class="kpi-title">${title}</div>
-          <div class="kpi-value" ${isMain ? 'style="color: var(--primary);"' : ''}>${fmt(current)}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span style="font-size:22px;">${c.icon}</span>
+            <div class="kpi-title" style="margin-bottom:0;">${title}</div>
+          </div>
+          <div class="kpi-value" style="color:${c.color};">${fmt(current)}</div>
           ${diffHtml}
         </div>
-      </div>
-    `;
+      </div>`;
   };
+
+  // PIT summary for current month's quarter
+  const curM = parseInt(selectedMonth.split('/')[0]);
+  const curQ = curM <= 3 ? '1' : (curM <= 6 ? '2' : (curM <= 9 ? '3' : '4'));
+  const pitList = aggregatePITData(curQ);
+  const pitHasTax = pitList.filter(e => e.taxable > 0).length;
+  const pitTotal = pitList.reduce((s, e) => s + Math.max(0, e.taxable), 0);
 
   return `
   <div class="fade-in">
     ${Header('Tổng quan ' + selectedMonth)}
     <div class="dashboard-grid">
       <!-- Row 1: KPIs -->
-      ${renderKPI('Tổng thu nhập thực nhận', totalNet, prevTotalNet, true)}
-      ${renderKPI('Tổng Trực & Ngoài giờ', totalOT, prevTotalOT)}
-      ${renderKPI('Tổng Khen thưởng', totalBonus, prevTotalBonus)}
-      ${renderKPI('Tổng Đãi ngộ NQ20', totalNQ20, prevTotalNQ20)}
+      ${renderKPI('Tổng thu nhập thực nhận', totalNet, prevTotalNet, 0)}
+      ${renderKPI('Tổng Trực & Ngoài giờ', totalOT, prevTotalOT, 1)}
+      ${renderKPI('Tổng Khen thưởng', totalBonus, prevTotalBonus, 2)}
+      ${renderKPI('Tổng Đãi ngộ NQ20', totalNQ20, prevTotalNQ20, 3)}
       
-      <!-- Row 2: Charts -->
+      <!-- Row 2: Donut + Top Dept -->
       <div class="dashboard-panel col-span-4">
-        <div class="panel-header">Cơ cấu thu nhập</div>
+        <div class="panel-header"><i data-lucide="pie-chart" style="width:18px;height:18px;color:#3b82f6;"></i> Cơ cấu thu nhập</div>
         <div id="chart-income-structure" class="chart-container"></div>
       </div>
       <div class="dashboard-panel col-span-8">
-        <div class="panel-header">Top Khoa/Phòng có tổng quỹ lương cao nhất</div>
+        <div class="panel-header"><i data-lucide="bar-chart-2" style="width:18px;height:18px;color:#f59e0b;"></i> Top Khoa/Phòng quỹ lương cao nhất</div>
         <div id="chart-top-dept-salary" class="chart-container"></div>
       </div>
 
-      <!-- Row 3: Stacked Bar -->
+      <!-- Row 3: Top/Bottom Employees -->
+      <div class="dashboard-panel col-span-6">
+        <div class="panel-header"><i data-lucide="trophy" style="width:18px;height:18px;color:#f59e0b;"></i> Top 10 thu nhập cao nhất</div>
+        <div id="chart-top-employees" class="chart-container"></div>
+      </div>
+      <div class="dashboard-panel col-span-6">
+        <div class="panel-header"><i data-lucide="alert-circle" style="width:18px;height:18px;color:#ef4444;"></i> Top 10 thu nhập thấp nhất</div>
+        <div id="chart-bottom-employees" class="chart-container"></div>
+      </div>
+
+      <!-- Row 4: Stacked Bar Dept Breakdown -->
       <div class="dashboard-panel col-span-12">
-        <div class="panel-header">Chi tiết Lương, Trực & Thưởng theo Khoa/Phòng</div>
+        <div class="panel-header"><i data-lucide="layers" style="width:18px;height:18px;color:#10b981;"></i> Chi tiết Lương, Trực & Thưởng theo Khoa/Phòng</div>
         <div id="chart-dept-breakdown" class="chart-container large"></div>
+      </div>
+
+      <!-- Row 5: PIT Tax -->
+      <div class="dashboard-panel col-span-4">
+        <div class="panel-header"><i data-lucide="calculator" style="width:18px;height:18px;color:#ef4444;"></i> Thuế TNCN Quý ${curQ}</div>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;">
+            <span style="font-size:0.85rem;color:var(--text-muted);">Người có thu nhập chịu thuế</span>
+            <span style="font-size:1.3rem;font-weight:700;color:#ef4444;">${pitHasTax}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;">
+            <span style="font-size:0.85rem;color:var(--text-muted);">Tổng TNCT cả quý</span>
+            <span style="font-size:1.1rem;font-weight:700;color:#3b82f6;">${fmt(pitTotal)}</span>
+          </div>
+        </div>
+        <div id="chart-pit-gauge" class="chart-container" style="min-height:200px;"></div>
+      </div>
+      <div class="dashboard-panel col-span-8">
+        <div class="panel-header"><i data-lucide="bar-chart-horizontal" style="width:18px;height:18px;color:#ef4444;"></i> Top người có thu nhập chịu thuế cao nhất (Quý ${curQ})</div>
+        <div id="chart-pit-top" class="chart-container"></div>
       </div>
     </div>
   </div>`;
@@ -1105,153 +1147,267 @@ window.renderDashboardCharts = () => {
   const totalBonus = bd.reduce((s, e) => s + (e.amount || 0), 0);
   const totalNQ20 = nd.reduce((s, e) => s + (e.amount || 0), 0);
 
-  const colors = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6'];
-
-  const incomeChartEl = document.getElementById('chart-income-structure');
-  let incomeChart = null;
-  if (incomeChartEl) {
-    incomeChart = echarts.init(incomeChartEl);
-    incomeChart.setOption({
-      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-      legend: { bottom: '0%', left: 'center', textStyle: { color: '#94a3b8' } },
-      color: colors,
-      series: [
-        {
-          name: 'Thu nhập',
-          type: 'pie',
-          radius: ['45%', '70%'],
-          avoidLabelOverlap: false,
-          itemStyle: {
-            borderRadius: 5,
-            borderColor: 'var(--card-bg)',
-            borderWidth: 2
-          },
-          label: { show: false, position: 'center' },
-          emphasis: {
-            label: { show: true, fontSize: 16, fontWeight: 'bold', color: 'var(--foreground)' }
-          },
-          labelLine: { show: false },
-          data: [
-            { value: totalSalary, name: 'Lương' },
-            { value: totalOT, name: 'Trực & NG' },
-            { value: totalBonus, name: 'Khen thưởng' },
-            { value: totalNQ20, name: 'NQ20' }
-          ].filter(item => item.value > 0)
-        }
-      ]
-    });
-  }
-
-  const depts = {};
-  sd.forEach(e => {
-    const d = e.department || e.dept || 'Khác';
-    if (!depts[d]) depts[d] = { salary: 0, ot: 0, bonus: 0 };
-    depts[d].salary += e.total;
-  });
-  od.forEach(e => {
-    const d = e.department || e.dept || 'Khác';
-    if (!depts[d]) depts[d] = { salary: 0, ot: 0, bonus: 0 };
-    depts[d].ot += (e.amount || 0);
-  });
-  bd.forEach(e => {
-    const d = e.department || e.dept || 'Khác';
-    if (!depts[d]) depts[d] = { salary: 0, ot: 0, bonus: 0 };
-    depts[d].bonus += (e.amount || 0);
-  });
-
-  const deptList = Object.keys(depts).map(d => ({
-    name: d,
-    salary: depts[d].salary,
-    ot: depts[d].ot,
-    bonus: depts[d].bonus,
-    total: depts[d].salary + depts[d].ot + depts[d].bonus
-  })).sort((a, b) => b.total - a.total);
-
-  const topDeptChartEl = document.getElementById('chart-top-dept-salary');
-  let topDeptChart = null;
-  if (topDeptChartEl) {
-    const top5 = deptList.slice(0, 5);
-    topDeptChart = echarts.init(topDeptChartEl);
-    topDeptChart.setOption({
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      grid: { left: '3%', right: '8%', bottom: '3%', top: '5%', containLabel: true },
-      xAxis: { type: 'value', axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } } },
-      yAxis: { type: 'category', data: top5.map(d => d.name).reverse(), axisLabel: { color: '#cbd5e1', width: 100, overflow: 'truncate' } },
-      series: [
-        {
-          name: 'Tổng thu nhập',
-          type: 'bar',
-          data: top5.map(d => d.total).reverse(),
-          label: {
-            show: true,
-            position: 'right',
-            color: '#f8fafc',
-            formatter: (params) => (params.value / 1000000).toFixed(1) + ' Tr'
-          },
-          itemStyle: {
-            color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
-              { offset: 0, color: '#3b82f6' },
-              { offset: 1, color: '#1e3a8a' }
-            ]),
-            borderRadius: [0, 4, 4, 0]
-          }
-        }
-      ]
-    });
-  }
-
-  const breakdownChartEl = document.getElementById('chart-dept-breakdown');
-  let breakdownChart = null;
-  if (breakdownChartEl) {
-    breakdownChart = echarts.init(breakdownChartEl);
-    const top15 = deptList.slice(0, 15);
-    breakdownChart.setOption({
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      legend: { data: ['Lương', 'Trực & NG', 'Khen thưởng'], textStyle: { color: '#94a3b8' }, top: 0 },
-      grid: { left: '3%', right: '4%', bottom: '15%', containLabel: true },
-      xAxis: {
-        type: 'category',
-        data: top15.map(d => d.name),
-        axisLabel: { color: '#cbd5e1', interval: 0, rotate: 30, width: 90, overflow: 'truncate' }
-      },
-      yAxis: { type: 'value', axisLabel: { color: '#64748b' }, splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } } },
-      series: [
-        {
-          name: 'Lương',
-          type: 'bar',
-          stack: 'total',
-          emphasis: { focus: 'series' },
-          itemStyle: { color: '#3b82f6' },
-          data: top15.map(d => d.salary)
-        },
-        {
-          name: 'Trực & NG',
-          type: 'bar',
-          stack: 'total',
-          emphasis: { focus: 'series' },
-          itemStyle: { color: '#f59e0b' },
-          data: top15.map(d => d.ot)
-        },
-        {
-          name: 'Khen thưởng',
-          type: 'bar',
-          stack: 'total',
-          emphasis: { focus: 'series' },
-          itemStyle: { color: '#10b981' },
-          data: top15.map(d => d.bonus)
-        }
-      ]
-    });
-  }
-
-  const resizeHandler = () => {
-    if (incomeChart) incomeChart.resize();
-    if (topDeptChart) topDeptChart.resize();
-    if (breakdownChart) breakdownChart.resize();
+  // --- Common chart theme ---
+  const tooltipStyle = {
+    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+    borderColor: 'rgba(99, 179, 237, 0.3)',
+    borderWidth: 1,
+    textStyle: { color: '#f1f5f9', fontSize: 13 },
+    extraCssText: 'border-radius:8px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); backdrop-filter:blur(8px);'
   };
+  const gridLine = { lineStyle: { color: 'rgba(148, 163, 184, 0.1)', type: 'dashed' } };
+  const axisLabelStyle = { color: '#94a3b8', fontSize: 11 };
+
+  const allCharts = [];
+
+  // ===== 1. Income Structure (Donut) =====
+  const incomeChartEl = document.getElementById('chart-income-structure');
+  if (incomeChartEl) {
+    const chart = echarts.init(incomeChartEl);
+    allCharts.push(chart);
+    chart.setOption({
+      tooltip: { ...tooltipStyle, trigger: 'item', formatter: '{b}<br/>{c} ({d}%)' },
+      legend: { bottom: '2%', left: 'center', textStyle: { color: '#94a3b8', fontSize: 12 }, itemGap: 16, itemWidth: 12, itemHeight: 12 },
+      color: ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6'],
+      animationDuration: 800,
+      animationEasing: 'cubicOut',
+      series: [{
+        name: 'Thu nhập',
+        type: 'pie',
+        radius: ['42%', '72%'],
+        center: ['50%', '45%'],
+        avoidLabelOverlap: false,
+        itemStyle: { borderRadius: 6, borderColor: 'rgba(15,23,42,0.8)', borderWidth: 3 },
+        label: { show: false },
+        emphasis: {
+          label: { show: true, fontSize: 15, fontWeight: '700', color: '#f1f5f9',
+            formatter: (p) => p.name + '\n' + (p.value / 1000000).toFixed(1) + ' Tr' },
+          itemStyle: { shadowBlur: 20, shadowColor: 'rgba(59,130,246,0.4)' }
+        },
+        labelLine: { show: false },
+        data: [
+          { value: totalSalary, name: 'Lương' },
+          { value: totalOT, name: 'Trực & NG' },
+          { value: totalBonus, name: 'Khen thưởng' },
+          { value: totalNQ20, name: 'NQ20' }
+        ].filter(i => i.value > 0)
+      }]
+    });
+  }
+
+  // ===== Aggregate depts =====
+  const depts = {};
+  sd.forEach(e => { const d = e.department || e.dept || 'Khác'; if (!depts[d]) depts[d] = { salary: 0, ot: 0, bonus: 0 }; depts[d].salary += e.total; });
+  od.forEach(e => { const d = e.department || e.dept || 'Khác'; if (!depts[d]) depts[d] = { salary: 0, ot: 0, bonus: 0 }; depts[d].ot += (e.amount || 0); });
+  bd.forEach(e => { const d = e.department || e.dept || 'Khác'; if (!depts[d]) depts[d] = { salary: 0, ot: 0, bonus: 0 }; depts[d].bonus += (e.amount || 0); });
+  const deptList = Object.keys(depts).map(d => ({ name: d, salary: depts[d].salary, ot: depts[d].ot, bonus: depts[d].bonus, total: depts[d].salary + depts[d].ot + depts[d].bonus })).sort((a, b) => b.total - a.total);
+
+  // ===== 2. Top Dept Bar =====
+  const topDeptChartEl = document.getElementById('chart-top-dept-salary');
+  if (topDeptChartEl) {
+    const chart = echarts.init(topDeptChartEl);
+    allCharts.push(chart);
+    const top7 = deptList.slice(0, 7);
+    chart.setOption({
+      tooltip: { ...tooltipStyle, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(59,130,246,0.06)' } },
+        formatter: (params) => params[0].name + '<br/>' + params.map(p => '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + p.color + ';margin-right:6px;"></span>' + p.seriesName + ': <b>' + fmt(p.value) + '</b>').join('<br/>')
+      },
+      grid: { left: '2%', right: '12%', bottom: '3%', top: '3%', containLabel: true },
+      xAxis: { type: 'value', axisLabel: { ...axisLabelStyle, formatter: v => (v / 1000000).toFixed(0) + 'Tr' }, splitLine: gridLine, axisLine: { show: false } },
+      yAxis: { type: 'category', data: top7.map(d => d.name).reverse(), axisLabel: { ...axisLabelStyle, width: 110, overflow: 'truncate' }, axisLine: { show: false }, axisTick: { show: false } },
+      animationDuration: 600,
+      animationEasing: 'cubicOut',
+      series: [{
+        name: 'Tổng thu nhập',
+        type: 'bar',
+        barWidth: '55%',
+        data: top7.map((d, i) => ({
+          value: d.total,
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: ['#1e3a8a', '#1e40af', '#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd'][i] || '#93c5fd' },
+              { offset: 1, color: ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe', '#eff6ff', '#f0f9ff'][i] || '#f0f9ff' }
+            ]),
+            borderRadius: [0, 5, 5, 0],
+            shadowColor: 'rgba(59,130,246,0.15)', shadowBlur: 8
+          }
+        })).reverse(),
+        label: { show: true, position: 'right', color: '#94a3b8', fontSize: 11, fontWeight: 600, formatter: p => (p.value / 1000000).toFixed(1) + ' Tr' }
+      }]
+    });
+  }
+
+  // ===== 3. Top 10 Employees (highest income) =====
+  const empIncome = {};
+  sd.forEach(e => { const n = e.name; if (!empIncome[n]) empIncome[n] = { name: n, dept: e.department || e.dept || '', total: 0 }; empIncome[n].total += e.total; });
+  od.forEach(e => { const n = e.name; if (!empIncome[n]) empIncome[n] = { name: n, dept: e.department || e.dept || '', total: 0 }; empIncome[n].total += (e.amount || 0); });
+  bd.forEach(e => { const n = e.name; if (!empIncome[n]) empIncome[n] = { name: n, dept: e.department || e.dept || '', total: 0 }; empIncome[n].total += (e.amount || 0); });
+  nd.forEach(e => { const n = e.name; if (!empIncome[n]) empIncome[n] = { name: n, dept: e.department || e.dept || '', total: 0 }; empIncome[n].total += (e.amount || 0); });
+  const empList = Object.values(empIncome).filter(e => e.total > 0).sort((a, b) => b.total - a.total);
+
+  const topEmpEl = document.getElementById('chart-top-employees');
+  if (topEmpEl && empList.length > 0) {
+    const chart = echarts.init(topEmpEl);
+    allCharts.push(chart);
+    const top10 = empList.slice(0, 10);
+    const maxVal = top10[0]?.total || 1;
+    chart.setOption({
+      tooltip: { ...tooltipStyle, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(16,185,129,0.06)' } },
+        formatter: p => p[0].name + '<br/><b>' + fmt(p[0].value) + '</b>'
+      },
+      grid: { left: '2%', right: '14%', bottom: '3%', top: '3%', containLabel: true },
+      xAxis: { type: 'value', axisLabel: { ...axisLabelStyle, formatter: v => (v / 1000000).toFixed(0) + 'Tr' }, splitLine: gridLine, axisLine: { show: false } },
+      yAxis: { type: 'category', data: top10.map(e => e.name).reverse(), axisLabel: { ...axisLabelStyle, width: 100, overflow: 'truncate' }, axisLine: { show: false }, axisTick: { show: false } },
+      animationDuration: 700,
+      series: [{
+        type: 'bar', barWidth: '50%',
+        data: top10.map((e, i) => ({
+          value: e.total,
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: '#059669' }, { offset: 1, color: '#34d399' }
+            ]),
+            borderRadius: [0, 4, 4, 0], shadowColor: 'rgba(16,185,129,0.2)', shadowBlur: 6
+          }
+        })).reverse(),
+        label: { show: true, position: 'right', color: '#6ee7b7', fontSize: 10, fontWeight: 600, formatter: p => (p.value / 1000000).toFixed(1) + ' Tr' }
+      }]
+    });
+  }
+
+  // ===== 4. Bottom 10 Employees (lowest income) =====
+  const bottomEmpEl = document.getElementById('chart-bottom-employees');
+  if (bottomEmpEl && empList.length > 0) {
+    const chart = echarts.init(bottomEmpEl);
+    allCharts.push(chart);
+    const bottom10 = empList.slice(-10).reverse();
+    chart.setOption({
+      tooltip: { ...tooltipStyle, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(239,68,68,0.06)' } },
+        formatter: p => p[0].name + '<br/><b>' + fmt(p[0].value) + '</b>'
+      },
+      grid: { left: '2%', right: '14%', bottom: '3%', top: '3%', containLabel: true },
+      xAxis: { type: 'value', axisLabel: { ...axisLabelStyle, formatter: v => (v / 1000000).toFixed(0) + 'Tr' }, splitLine: gridLine, axisLine: { show: false } },
+      yAxis: { type: 'category', data: bottom10.map(e => e.name).reverse(), axisLabel: { ...axisLabelStyle, width: 100, overflow: 'truncate' }, axisLine: { show: false }, axisTick: { show: false } },
+      animationDuration: 700,
+      series: [{
+        type: 'bar', barWidth: '50%',
+        data: bottom10.map(e => ({
+          value: e.total,
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: '#dc2626' }, { offset: 1, color: '#f87171' }
+            ]),
+            borderRadius: [0, 4, 4, 0], shadowColor: 'rgba(239,68,68,0.2)', shadowBlur: 6
+          }
+        })).reverse(),
+        label: { show: true, position: 'right', color: '#fca5a5', fontSize: 10, fontWeight: 600, formatter: p => (p.value / 1000000).toFixed(1) + ' Tr' }
+      }]
+    });
+  }
+
+  // ===== 5. Dept Breakdown Stacked Bar =====
+  const breakdownChartEl = document.getElementById('chart-dept-breakdown');
+  if (breakdownChartEl) {
+    const chart = echarts.init(breakdownChartEl);
+    allCharts.push(chart);
+    const top15 = deptList.slice(0, 15);
+    chart.setOption({
+      tooltip: { ...tooltipStyle, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(59,130,246,0.04)' } },
+        formatter: (params) => '<b>' + params[0].name + '</b><br/>' + params.map(p => '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + p.color + ';margin-right:6px;"></span>' + p.seriesName + ': <b>' + fmt(p.value) + '</b>').join('<br/>') + '<br/><hr style="margin:4px 0;border-color:rgba(255,255,255,0.1);"/><b>Tổng: ' + fmt(params.reduce((s, p) => s + p.value, 0)) + '</b>'
+      },
+      legend: { data: ['Lương', 'Trực & NG', 'Khen thưởng'], textStyle: { color: '#94a3b8', fontSize: 12 }, top: 0, itemGap: 20, itemWidth: 14, itemHeight: 10 },
+      grid: { left: '2%', right: '3%', bottom: '15%', top: '10%', containLabel: true },
+      xAxis: {
+        type: 'category', data: top15.map(d => d.name),
+        axisLabel: { ...axisLabelStyle, interval: 0, rotate: 25, width: 90, overflow: 'truncate' },
+        axisLine: { lineStyle: { color: 'rgba(148,163,184,0.2)' } }, axisTick: { show: false }
+      },
+      yAxis: { type: 'value', axisLabel: { ...axisLabelStyle, formatter: v => (v / 1000000).toFixed(0) + 'Tr' }, splitLine: gridLine, axisLine: { show: false } },
+      animationDuration: 800,
+      animationEasing: 'cubicOut',
+      series: [
+        { name: 'Lương', type: 'bar', stack: 'total', barWidth: '55%', emphasis: { focus: 'series', itemStyle: { shadowBlur: 10, shadowColor: 'rgba(59,130,246,0.3)' } }, itemStyle: { color: '#3b82f6', borderRadius: [0, 0, 0, 0] }, data: top15.map(d => d.salary) },
+        { name: 'Trực & NG', type: 'bar', stack: 'total', emphasis: { focus: 'series' }, itemStyle: { color: '#f59e0b' }, data: top15.map(d => d.ot) },
+        { name: 'Khen thưởng', type: 'bar', stack: 'total', emphasis: { focus: 'series' }, itemStyle: { color: '#10b981', borderRadius: [3, 3, 0, 0] }, data: top15.map(d => d.bonus) }
+      ]
+    });
+  }
+
+  // ===== 6. PIT Tax Gauge =====
+  const curM = parseInt(selectedMonth.split('/')[0]);
+  const curQ = curM <= 3 ? '1' : (curM <= 6 ? '2' : (curM <= 9 ? '3' : '4'));
+  const pitList = aggregatePITData(curQ);
+  const pitHasTax = pitList.filter(e => e.taxable > 0).length;
+  const totalEmps = pitList.length;
+
+  const pitGaugeEl = document.getElementById('chart-pit-gauge');
+  if (pitGaugeEl && totalEmps > 0) {
+    const chart = echarts.init(pitGaugeEl);
+    allCharts.push(chart);
+    const pct = Math.round(pitHasTax / totalEmps * 100);
+    chart.setOption({
+      tooltip: tooltipStyle,
+      series: [{
+        type: 'gauge',
+        startAngle: 200, endAngle: -20,
+        min: 0, max: 100,
+        splitNumber: 5,
+        pointer: { show: true, length: '55%', width: 4, itemStyle: { color: '#ef4444' } },
+        progress: { show: true, width: 16, roundCap: true,
+          itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#fbbf24' }, { offset: 0.5, color: '#f59e0b' }, { offset: 1, color: '#ef4444' }]) }
+        },
+        axisLine: { lineStyle: { width: 16, color: [[1, 'rgba(148,163,184,0.12)']] } },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: { show: false },
+        title: { show: true, fontSize: 11, color: '#94a3b8', offsetCenter: [0, '75%'] },
+        detail: { fontSize: 28, fontWeight: 700, color: '#ef4444', offsetCenter: [0, '40%'], formatter: '{value}%' },
+        data: [{ value: pct, name: 'Tỷ lệ chịu thuế' }]
+      }]
+    });
+  }
+
+  // ===== 7. PIT Top Bar =====
+  const pitTopEl = document.getElementById('chart-pit-top');
+  if (pitTopEl) {
+    const chart = echarts.init(pitTopEl);
+    allCharts.push(chart);
+    const pitSorted = pitList.filter(e => e.taxable > 0).sort((a, b) => b.taxable - a.taxable).slice(0, 10);
+    if (pitSorted.length > 0) {
+      chart.setOption({
+        tooltip: { ...tooltipStyle, trigger: 'axis', axisPointer: { type: 'shadow', shadowStyle: { color: 'rgba(239,68,68,0.06)' } },
+          formatter: p => {
+            const e = pitSorted[pitSorted.length - 1 - p[0].dataIndex];
+            return '<b>' + p[0].name + '</b><br/>Thu nhập chịu thuế: <b style="color:#ef4444;">' + fmt(p[0].value) + '</b>';
+          }
+        },
+        grid: { left: '2%', right: '14%', bottom: '3%', top: '3%', containLabel: true },
+        xAxis: { type: 'value', axisLabel: { ...axisLabelStyle, formatter: v => (v / 1000000).toFixed(0) + 'Tr' }, splitLine: gridLine, axisLine: { show: false } },
+        yAxis: { type: 'category', data: pitSorted.map(e => e.name).reverse(), axisLabel: { ...axisLabelStyle, width: 100, overflow: 'truncate' }, axisLine: { show: false }, axisTick: { show: false } },
+        animationDuration: 700,
+        series: [{
+          type: 'bar', barWidth: '50%',
+          data: pitSorted.map(e => ({
+            value: e.taxable,
+            itemStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#dc2626' }, { offset: 0.5, color: '#f59e0b' }, { offset: 1, color: '#fbbf24' }]),
+              borderRadius: [0, 5, 5, 0], shadowColor: 'rgba(239,68,68,0.15)', shadowBlur: 6
+            }
+          })).reverse(),
+          label: { show: true, position: 'right', color: '#fca5a5', fontSize: 10, fontWeight: 600, formatter: p => (p.value / 1000000).toFixed(1) + ' Tr' }
+        }]
+      });
+    } else {
+      chart.setOption({
+        title: { text: 'Chưa có dữ liệu thuế TNCN', left: 'center', top: 'center', textStyle: { color: '#64748b', fontSize: 14 } }
+      });
+    }
+  }
+
+  // ===== Resize handler =====
   window.removeEventListener('resize', window._echartResizeHandler);
-  window._echartResizeHandler = resizeHandler;
-  window.addEventListener('resize', resizeHandler);
+  window._echartResizeHandler = () => allCharts.forEach(c => { try { c.resize(); } catch(e) {} });
+  window.addEventListener('resize', window._echartResizeHandler);
 };
 
 const BudgetSalaryTab = () => {
