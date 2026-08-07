@@ -1401,7 +1401,8 @@ window.renderDashboardCharts = () => {
   // ===== 6. PIT Tax Gauge =====
   const curM = parseInt(selectedMonth.split('/')[0]);
   const curQ = curM <= 3 ? '1' : (curM <= 6 ? '2' : (curM <= 9 ? '3' : '4'));
-  const pitList = aggregatePITData(curQ);
+  const pitQ = dashboardPeriod === 'year' ? 'all' : curQ;
+  const pitList = aggregatePITData(pitQ);
   const pitHasTax = pitList.filter(e => e.taxable > 0).length;
   const totalEmps = pitList.length;
 
@@ -2196,6 +2197,13 @@ const render = () => {
         saveToLocal();
         render();
       };
+    });
+
+    document.querySelectorAll('.dash-period-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        dashboardPeriod = e.target.dataset.period;
+        render();
+      });
     });
 
     const ib = document.getElementById('import-btn'), im = document.getElementById('import-modal'), cm = document.getElementById('close-modal'), cfm = document.getElementById('confirm-import');
