@@ -17,6 +17,7 @@ let isLoading = false;
 let searchFilter = '';
 let viewMode = 'monthly'; // 'monthly' hoặc 'summary'
 let summaryPeriod = 'q1'; // 'q1', 'q2', 'q3', 'q4', 'all'
+let dashboardPeriod = 'month'; // 'month', 'quarter', 'year'
 let previewData = null; // Dữ liệu cho modal xem trước
 let budgetSubTab = 'salary'; // 'salary', 'coefficients', 'template'
 let budgetBaseSalary = 2340000;
@@ -1009,11 +1010,42 @@ function getPreviousMonth(monthStr) {
   return `${m.toString().padStart(2, '0')}/${y}`;
 }
 
+// Helper: get months for the current period
+function getDashboardMonths() {
+  const [mm, yyyy] = selectedMonth.split('/').map(Number);
+  if (dashboardPeriod === 'month') return [selectedMonth];
+  if (dashboardPeriod === 'quarter') {
+    const q = mm <= 3 ? 1 : (mm <= 6 ? 4 : (mm <= 9 ? 7 : 10));
+    return [1,2,3].map(i => `${(q+i-1).toString().padStart(2,'0')}/${yyyy}`);
+  }
+  // year
+  return Array.from({length:12}, (_,i) => `${(i+1).toString().padStart(2,'0')}/${yyyy}`);
+}
+
+function getDashboardPeriodLabel() {
+  const [mm, yyyy] = selectedMonth.split('/').map(Number);
+  if (dashboardPeriod === 'month') return `Tháng ${mm.toString().padStart(2,'0')}/${yyyy}`;
+  if (dashboardPeriod === 'quarter') {
+    const q = mm <= 3 ? 'I' : (mm <= 6 ? 'II' : (mm <= 9 ? 'III' : 'IV'));
+    return `Quý ${q}/${yyyy}`;
+  }
+  return `Năm ${yyyy}`;
+}
+
+function aggregateDashboardData(months) {
+  let sd = [], od = [], bd = [], nd = [];
+  months.forEach(m => {
+    sd = sd.concat((salaryData[m] || []).filter(isRealEmployee));
+    od = od.concat(overtimeData[m] || []);
+    bd = bd.concat(bonusData[m] || []);
+    nd = nd.concat(nq20Data[m] || []);
+  });
+  return { sd, od, bd, nd };
+}
+
 const Dashboard = () => {
-  const sd = (salaryData[selectedMonth] || []).filter(isRealEmployee);
-  const od = (overtimeData[selectedMonth] || []);
-  const bd = (bonusData[selectedMonth] || []);
-  const nd = (nq20Data[selectedMonth] || []);
+  const months = getDashboardMonths();
+  const { sd, od, bd, nd } = aggregateDashboardData(months);
   
   const totalSalary = sd.reduce((s, e) => s + e.total, 0);
   const totalOT = od.reduce((s, e) => s + (e.amount || 0), 0);
@@ -1021,17 +1053,34 @@ const Dashboard = () => {
   const totalNQ20 = nd.reduce((s, e) => s + (e.amount || 0), 0);
   const totalNet = totalSalary + totalOT + totalBonus + totalNQ20;
 
-  const prevMonth = getPreviousMonth(selectedMonth);
+  // Previous period comparison
   let prevTotalNet = 0, prevTotalOT = 0, prevTotalBonus = 0, prevTotalNQ20 = 0;
-  if (prevMonth) {
-    const psd = (salaryData[prevMonth] || []).filter(isRealEmployee);
-    const pod = (overtimeData[prevMonth] || []);
-    const pbd = (bonusData[prevMonth] || []);
-    const pnd = (nq20Data[prevMonth] || []);
-    const pSal = psd.reduce((s, e) => s + e.total, 0);
-    prevTotalOT = pod.reduce((s, e) => s + (e.amount || 0), 0);
-    prevTotalBonus = pbd.reduce((s, e) => s + (e.amount || 0), 0);
-    prevTotalNQ20 = pnd.reduce((s, e) => s + (e.amount || 0), 0);
+  let hasPrev = false;
+  const [mm, yyyy] = selectedMonth.split('/').map(Number);
+  let prevMonths = [];
+  if (dashboardPeriod === 'month') {
+    const pm = getPreviousMonth(selectedMonth);
+    if (pm) { prevMonths = [pm]; hasPrev = true; }
+  } else if (dashboardPeriod === 'quarter') {
+    const q = mm <= 3 ? 1 : (mm <= 6 ? 4 : (mm <= 9 ? 7 : 10));
+    const pq = q - 3;
+    if (pq >= 1) {
+      prevMonths = [1,2,3].map(i => `${(pq+i-1).toString().padStart(2,'0')}/${yyyy}`);
+      hasPrev = true;
+    } else {
+      prevMonths = [10,11,12].map(i => `${i.toString().padStart(2,'0')}/${yyyy-1}`);
+      hasPrev = true;
+    }
+  } else {
+    prevMonths = Array.from({length:12}, (_,i) => `${(i+1).toString().padStart(2,'0')}/${yyyy-1}`);
+    hasPrev = true;
+  }
+  if (hasPrev) {
+    const p = aggregateDashboardData(prevMonths);
+    const pSal = p.sd.reduce((s, e) => s + e.total, 0);
+    prevTotalOT = p.od.reduce((s, e) => s + (e.amount || 0), 0);
+    prevTotalBonus = p.bd.reduce((s, e) => s + (e.amount || 0), 0);
+    prevTotalNQ20 = p.nd.reduce((s, e) => s + (e.amount || 0), 0);
     prevTotalNet = pSal + prevTotalOT + prevTotalBonus + prevTotalNQ20;
   }
 
@@ -1042,17 +1091,18 @@ const Dashboard = () => {
     { bg: 'linear-gradient(135deg, rgba(139,92,246,0.12), rgba(109,40,217,0.04))', border: 'rgba(139,92,246,0.35)', color: '#8b5cf6', icon: '🎖️' },
   ];
 
+  const prevLabel = dashboardPeriod === 'month' ? 'tháng trước' : (dashboardPeriod === 'quarter' ? 'quý trước' : 'năm trước');
   const renderKPI = (title, current, prev, idx) => {
     const c = kpiColors[idx];
     let diffHtml = '';
-    if (prevMonth && prev > 0) {
+    if (hasPrev && prev > 0) {
       const diff = current - prev;
       const pct = (diff / prev * 100).toFixed(1);
       const absDiff = Math.abs(diff);
-      if (diff > 0) diffHtml = `<div class="kpi-comparison up"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> +${fmt(absDiff)} (${pct}%)</div>`;
-      else if (diff < 0) diffHtml = `<div class="kpi-comparison down"><i data-lucide="trending-down" style="width:14px;height:14px;"></i> -${fmt(absDiff)} (${Math.abs(pct)}%)</div>`;
+      if (diff > 0) diffHtml = `<div class="kpi-comparison up"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> +${fmt(absDiff)} (${pct}%) sv ${prevLabel}</div>`;
+      else if (diff < 0) diffHtml = `<div class="kpi-comparison down"><i data-lucide="trending-down" style="width:14px;height:14px;"></i> -${fmt(absDiff)} (${Math.abs(pct)}%) sv ${prevLabel}</div>`;
       else diffHtml = `<div class="kpi-comparison neutral"><i data-lucide="minus" style="width:14px;height:14px;"></i> Không đổi</div>`;
-    } else if (prevMonth && prev === 0 && current > 0) {
+    } else if (hasPrev && prev === 0 && current > 0) {
       diffHtml = `<div class="kpi-comparison up"><i data-lucide="trending-up" style="width:14px;height:14px;"></i> Mới phát sinh</div>`;
     }
     return `
@@ -1068,16 +1118,33 @@ const Dashboard = () => {
       </div>`;
   };
 
-  // PIT summary for current month's quarter
+  // PIT summary
   const curM = parseInt(selectedMonth.split('/')[0]);
   const curQ = curM <= 3 ? '1' : (curM <= 6 ? '2' : (curM <= 9 ? '3' : '4'));
-  const pitList = aggregatePITData(curQ);
+  const pitQ = dashboardPeriod === 'year' ? 'all' : curQ;
+  const pitLabel = dashboardPeriod === 'year' ? 'Cả năm' : `Quý ${curQ}`;
+  const pitList = aggregatePITData(pitQ);
   const pitHasTax = pitList.filter(e => e.taxable > 0).length;
   const pitTotal = pitList.reduce((s, e) => s + Math.max(0, e.taxable), 0);
 
+  const periodLabel = getDashboardPeriodLabel();
+  const btnStyle = (val) => dashboardPeriod === val
+    ? 'background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;'
+    : 'background:transparent;color:var(--text-muted);border-color:var(--card-border);';
+
   return `
   <div class="fade-in">
-    ${Header('Tổng quan ' + selectedMonth)}
+    <header class="top-bar">
+      <h1 style="font-size:1.5rem;font-weight:700;">Tổng quan ${periodLabel}</h1>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--card-border);">
+          <button class="dash-period-btn" data-period="month" style="${btnStyle('month')}padding:6px 16px;border:none;cursor:pointer;font-size:13px;transition:all 0.2s;">Tháng</button>
+          <button class="dash-period-btn" data-period="quarter" style="${btnStyle('quarter')}padding:6px 16px;border:none;border-left:1px solid var(--card-border);border-right:1px solid var(--card-border);cursor:pointer;font-size:13px;transition:all 0.2s;">Quý</button>
+          <button class="dash-period-btn" data-period="year" style="${btnStyle('year')}padding:6px 16px;border:none;cursor:pointer;font-size:13px;transition:all 0.2s;">Năm</button>
+        </div>
+        <div class="search-bar"><i data-lucide="search" size="18"></i><input type="text" id="search-input" placeholder="Tìm kiếm..."></div>
+      </div>
+    </header>
     <div class="dashboard-grid">
       <!-- Row 1: KPIs -->
       ${renderKPI('Tổng thu nhập thực nhận', totalNet, prevTotalNet, 0)}
@@ -1113,21 +1180,21 @@ const Dashboard = () => {
 
       <!-- Row 5: PIT Tax -->
       <div class="dashboard-panel col-span-4">
-        <div class="panel-header"><i data-lucide="calculator" style="width:18px;height:18px;color:#ef4444;"></i> Thuế TNCN Quý ${curQ}</div>
+        <div class="panel-header"><i data-lucide="calculator" style="width:18px;height:18px;color:#ef4444;"></i> Thuế TNCN ${pitLabel}</div>
         <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px;">
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;">
             <span style="font-size:0.85rem;color:var(--text-muted);">Người có thu nhập chịu thuế</span>
             <span style="font-size:1.3rem;font-weight:700;color:#ef4444;">${pitHasTax}</span>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;">
-            <span style="font-size:0.85rem;color:var(--text-muted);">Tổng TNCT cả quý</span>
+            <span style="font-size:0.85rem;color:var(--text-muted);">Tổng TNCT ${pitLabel}</span>
             <span style="font-size:1.1rem;font-weight:700;color:#3b82f6;">${fmt(pitTotal)}</span>
           </div>
         </div>
         <div id="chart-pit-gauge" class="chart-container" style="min-height:200px;"></div>
       </div>
       <div class="dashboard-panel col-span-8">
-        <div class="panel-header"><i data-lucide="bar-chart-horizontal" style="width:18px;height:18px;color:#ef4444;"></i> Top người có thu nhập chịu thuế cao nhất (Quý ${curQ})</div>
+        <div class="panel-header"><i data-lucide="bar-chart-horizontal" style="width:18px;height:18px;color:#ef4444;"></i> Top người có TNCT cao nhất (${pitLabel})</div>
         <div id="chart-pit-top" class="chart-container"></div>
       </div>
     </div>
@@ -1137,10 +1204,8 @@ const Dashboard = () => {
 window.renderDashboardCharts = () => {
   if (typeof echarts === 'undefined') return;
 
-  const sd = (salaryData[selectedMonth] || []).filter(isRealEmployee);
-  const od = (overtimeData[selectedMonth] || []);
-  const bd = (bonusData[selectedMonth] || []);
-  const nd = (nq20Data[selectedMonth] || []);
+  const months = getDashboardMonths();
+  const { sd, od, bd, nd } = aggregateDashboardData(months);
   
   const totalSalary = sd.reduce((s, e) => s + e.total, 0);
   const totalOT = od.reduce((s, e) => s + (e.amount || 0), 0);
