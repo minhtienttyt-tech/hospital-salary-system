@@ -2218,7 +2218,7 @@ const render = () => {
     }
     document.querySelectorAll('.nav-item[data-tab]').forEach(i => i.onclick = () => { currentTab = i.dataset.tab; render(); });
     const si = document.getElementById('search-input'); if(si){ si.value = searchFilter; si.oninput = (e) => { searchFilter = e.target.value; render(); } }
-    const ms = document.getElementById('month-selector') || document.getElementById('ot-month-selector') || document.getElementById('bn-month-selector') || document.getElementById('nq20-month-selector');
+    const ms = document.getElementById('month-selector') || document.getElementById('ot-month-selector') || document.getElementById('bn-month-selector') || document.getElementById('nq20-month-selector') || document.getElementById('dashboard-month-selector');
     if(ms) ms.onchange = (e) => { selectedMonth = e.target.value; selectedBonusContent = 'all'; render(); }
     const bcs = document.getElementById('bn-content-selector');
     if(bcs) bcs.onchange = (e) => { selectedBonusContent = e.target.value; render(); }
