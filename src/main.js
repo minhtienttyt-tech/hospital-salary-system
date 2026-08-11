@@ -1127,7 +1127,6 @@ const Dashboard = () => {
   const pitHasTax = pitList.filter(e => e.taxable > 0).length;
   const pitTotal = pitList.reduce((s, e) => s + Math.max(0, e.taxable), 0);
 
-  const periodLabel = getDashboardPeriodLabel();
   const btnStyle = (val) => dashboardPeriod === val
     ? 'background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;'
     : 'background:transparent;color:var(--text-muted);border-color:var(--card-border);';
@@ -1135,7 +1134,7 @@ const Dashboard = () => {
   return `
   <div class="fade-in">
     <header class="top-bar">
-      <h1 style="font-size:1.5rem;font-weight:700;">Tổng quan ${periodLabel}</h1>
+      <h1 style="font-size:1.5rem;font-weight:700;display:flex;align-items:center;gap:0.5rem;">Tổng quan ${timeSelectorHtml}</h1>
       <div style="display:flex;align-items:center;gap:12px;">
         <div style="display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--card-border);">
           <button class="dash-period-btn" data-period="month" style="${btnStyle('month')}padding:6px 16px;border:none;cursor:pointer;font-size:13px;transition:all 0.2s;">Tháng</button>
