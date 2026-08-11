@@ -1127,6 +1127,42 @@ const Dashboard = () => {
   const pitHasTax = pitList.filter(e => e.taxable > 0).length;
   const pitTotal = pitList.reduce((s, e) => s + Math.max(0, e.taxable), 0);
 
+  const allMonths = sortMonthsDesc([...new Set([
+    ...Object.keys(salaryData), ...Object.keys(overtimeData), ...Object.keys(bonusData), ...Object.keys(nq20Data)
+  ])]);
+  if (!allMonths.includes(selectedMonth)) allMonths.unshift(selectedMonth);
+
+  let timeSelectorHtml = '';
+  if (dashboardPeriod === 'month') {
+    timeSelectorHtml = `<select class="select-input" id="dashboard-month-selector" style="font-size:1.25rem; font-weight:700; padding:2px 8px; border:1px solid transparent; border-radius:6px; background:var(--card-bg); cursor:pointer; color:inherit; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+      ${allMonths.map(m => `<option value="${m}" ${selectedMonth===m?'selected':''}>Tháng ${m}</option>`).join('')}
+    </select>`;
+  } else if (dashboardPeriod === 'quarter') {
+    const qMap = {};
+    allMonths.forEach(m => {
+      const [mm, yy] = m.split('/');
+      const q = mm <= 3 ? 1 : (mm <= 6 ? 2 : (mm <= 9 ? 3 : 4));
+      const key = `Quý ${q}/${yy}`;
+      if (!qMap[key]) qMap[key] = `${(q*3-2).toString().padStart(2,'0')}/${yy}`;
+    });
+    const [cmm, cyy] = selectedMonth.split('/');
+    const cq = cmm <= 3 ? 1 : (cmm <= 6 ? 2 : (cmm <= 9 ? 3 : 4));
+    const currentQKey = `Quý ${cq}/${cyy}`;
+    timeSelectorHtml = `<select class="select-input" id="dashboard-month-selector" style="font-size:1.25rem; font-weight:700; padding:2px 8px; border:1px solid transparent; border-radius:6px; background:var(--card-bg); cursor:pointer; color:inherit; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+      ${Object.keys(qMap).map(k => `<option value="${qMap[k]}" ${k===currentQKey?'selected':''}>${k}</option>`).join('')}
+    </select>`;
+  } else if (dashboardPeriod === 'year') {
+    const yMap = {};
+    allMonths.forEach(m => {
+      const yy = m.split('/')[1];
+      if (!yMap[yy]) yMap[yy] = `01/${yy}`;
+    });
+    const cyy = selectedMonth.split('/')[1];
+    timeSelectorHtml = `<select class="select-input" id="dashboard-month-selector" style="font-size:1.25rem; font-weight:700; padding:2px 8px; border:1px solid transparent; border-radius:6px; background:var(--card-bg); cursor:pointer; color:inherit; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+      ${Object.keys(yMap).map(k => `<option value="${yMap[k]}" ${k===cyy?'selected':''}>Năm ${k}</option>`).join('')}
+    </select>`;
+  }
+
   const btnStyle = (val) => dashboardPeriod === val
     ? 'background:var(--primary);color:#fff;border-color:var(--primary);font-weight:600;'
     : 'background:transparent;color:var(--text-muted);border-color:var(--card-border);';
