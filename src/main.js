@@ -9,6 +9,7 @@ let selectedPITQuarter = 'all';
 let salaryData = {};
 let overtimeData = {};
 let bonusData = {};
+let leaveData = {};
 let nq20Data = {};
 let selectedBonusContent = 'all';
 let salaryHeaders = [];
@@ -36,6 +37,7 @@ try {
   salaryData = JSON.parse(localStorage.getItem('hospital_salary_data')) || {};
   overtimeData = JSON.parse(localStorage.getItem('hospital_overtime_data')) || {};
   bonusData = JSON.parse(localStorage.getItem('hospital_bonus_data')) || {};
+  leaveData = JSON.parse(localStorage.getItem('hospital_leave_data')) || {};
   nq20Data = JSON.parse(localStorage.getItem('hospital_nq20_data')) || {};
   salaryHeaders = JSON.parse(localStorage.getItem('hospital_salary_headers')) || [];
   dependentOverrides = JSON.parse(localStorage.getItem('hospital_dependent_overrides')) || {};
@@ -58,16 +60,18 @@ try {
   if (changed) {
     localStorage.setItem('hospital_overtime_data', JSON.stringify(overtimeData));
     localStorage.setItem('hospital_bonus_data', JSON.stringify(bonusData));
+    localStorage.setItem('hospital_leave_data', JSON.stringify(leaveData));
     localStorage.setItem('hospital_nq20_data', JSON.stringify(nq20Data));
   }
 } catch (e) {
-  salaryData = {}; overtimeData = {}; bonusData = {}; nq20Data = {}; salaryHeaders = []; dependentOverrides = {}; budgetPromotionData = {};
+  salaryData = {}; overtimeData = {}; bonusData = {}; nq20Data = {}; leaveData = {}; salaryHeaders = []; dependentOverrides = {}; budgetPromotionData = {};
 }
 
 function saveToLocal() {
   localStorage.setItem('hospital_salary_data', JSON.stringify(salaryData));
   localStorage.setItem('hospital_overtime_data', JSON.stringify(overtimeData));
   localStorage.setItem('hospital_bonus_data', JSON.stringify(bonusData));
+    localStorage.setItem('hospital_leave_data', JSON.stringify(leaveData));
   localStorage.setItem('hospital_nq20_data', JSON.stringify(nq20Data));
   localStorage.setItem('hospital_salary_headers', JSON.stringify(salaryHeaders));
   localStorage.setItem('hospital_dependent_overrides', JSON.stringify(dependentOverrides));
@@ -285,6 +289,7 @@ const Sidebar = () => `
       <li class="nav-item ${currentTab==='salary'?'active':''}" data-tab="salary"><i data-lucide="banknote"></i><span>Bảng lương</span></li>
       <li class="nav-item ${currentTab==='overtime'?'active':''}" data-tab="overtime"><i data-lucide="clock"></i><span>Trực & Ngoài giờ</span></li>
       <li class="nav-item ${currentTab==='bonus'?'active':''}" data-tab="bonus"><i data-lucide="gift"></i><span>Khen thưởng</span></li>
+      <li class="nav-item ${currentTab==='leave'?'active':''}" data-tab="leave"><i data-lucide="plane"></i><span>Công tác & Nghỉ phép</span></li>
       <li class="nav-item ${currentTab==='nq20'?'active':''}" data-tab="nq20"><i data-lucide="award"></i><span>Chế độ NQ20</span></li>
       <li class="nav-item ${currentTab==='pit'?'active':''}" data-tab="pit"><i data-lucide="calculator"></i><span>Thuế TNCN</span></li>
       <li class="nav-item ${currentTab==='budget'?'active':''}" data-tab="budget"><i data-lucide="trending-up"></i><span>Dự toán N+1</span></li>
@@ -440,7 +445,7 @@ const SalaryTable = () => {
 
 function aggregatePITData(quarter) {
   const all = {};
-  const allMonths = [...new Set([...Object.keys(salaryData), ...Object.keys(overtimeData), ...Object.keys(bonusData)])];
+  const allMonths = [...new Set([...Object.keys(salaryData), ...Object.keys(overtimeData), ...Object.keys(bonusData), ...Object.keys(leaveData)])];
 
   allMonths.forEach(month => {
     const m = parseInt(month.split('/')[0]);
@@ -698,6 +703,149 @@ const OvertimeModule = () => {
               ? filtered.map((e, idx) => `<tr><td>${idx+1}</td><td>${e.name}</td><td>${fmt(e.amount)}</td></tr>`).join('')
               : `<tr><td colspan="3" style="text-align:center;padding:3rem;color:var(--text-muted);">Chưa có dữ liệu ngoài giờ.</td></tr>`
             }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+};
+
+
+window.updateLeaveNotes = function(name, val) {
+  if (leaveData[selectedMonth]) {
+    const r = leaveData[selectedMonth].find(e => normalize(e.name) === normalize(name));
+    if (r) { r.notes = val; saveToLocal(); }
+  }
+};
+window.updateLeaveAmount = function(name, val) {
+  if (leaveData[selectedMonth]) {
+    const r = leaveData[selectedMonth].find(e => normalize(e.name) === normalize(name));
+    if (r) { r.amount = parseNumber(val); saveToLocal(); render(); }
+  }
+};
+window.exportLeaveToExcel = function() {
+  try {
+    const isSummary = viewMode === 'summary';
+    const months = isSummary ? getMonthsInPeriod(summaryPeriod) : [selectedMonth];
+    const agg = {};
+    months.forEach(m => {
+      (leaveData[m] || []).forEach(e => {
+        if (!agg[e.name]) agg[e.name] = { ...e, amount: 0, count: 0 };
+        agg[e.name].amount += (e.amount || 0);
+        agg[e.name].count++;
+        // concatenate notes
+        if (e.notes) {
+            agg[e.name].notes = agg[e.name].notes ? agg[e.name].notes + '; ' + e.notes : e.notes;
+        }
+      });
+    });
+    
+    const rows = Object.values(agg).map((e, i) => ({
+      'STT': i + 1,
+      'Họ tên': e.name,
+      'Khoa/Phòng': e.dept,
+      'Số tiền': e.amount,
+      'Ghi chú': e.notes || ''
+    }));
+    
+    if (!rows.length) return alert('Không có dữ liệu!');
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'CongTac_NghiPhep');
+    XLSX.writeFile(wb, 'CongTac_NghiPhep_' + (isSummary ? summaryPeriod : selectedMonth.replace('/','-')) + '.xlsx');
+  } catch(e) { alert('Lỗi: ' + e.message); }
+};
+window.importLeaveMonth = function() {
+  if (!salaryData[selectedMonth]) return alert('Vui lòng Import Bảng lương tháng ' + selectedMonth + ' trước!');
+  leaveData[selectedMonth] = salaryData[selectedMonth].filter(isValidEmp).map(e => ({
+    name: e.name, dept: e.department, amount: 0, notes: ''
+  }));
+  saveToLocal(); render();
+};
+window.deleteLeaveMonth = function() {
+  if (confirm('Xóa dữ liệu Công tác & Nghỉ phép tháng ' + selectedMonth + '?')) {
+    delete leaveData[selectedMonth];
+    saveToLocal(); render();
+  }
+};
+
+const LeaveModule = () => {
+  let filtered = [];
+  let title = '';
+  if (viewMode === 'monthly') {
+    const emps = leaveData[selectedMonth] || [];
+    filtered = searchFilter ? emps.filter(e => e.name.toLowerCase().includes(searchFilter.toLowerCase())) : emps;
+    title = `Danh sách Công tác & Nghỉ phép ${selectedMonth}`;
+  } else {
+    const months = getMonthsInPeriod(summaryPeriod);
+    const agg = aggregateData(leaveData, months);
+    filtered = searchFilter ? agg.filter(e => e.name.toLowerCase().includes(searchFilter.toLowerCase())) : agg;
+    title = 'Tổng hợp Công tác & Nghỉ phép ' + (summaryPeriod === 'all' ? 'Cả năm' : 'Quý ' + summaryPeriod[1]);
+  }
+  
+  const months = sortMonthsDesc(Object.keys(leaveData));
+  const displayMonths = months.includes(selectedMonth) ? months : sortMonthsDesc([...new Set([selectedMonth, ...months])]);
+  
+  return `
+  <div class="fade-in">
+    ${Header(title)}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:1.5rem;gap:1rem;flex-wrap:wrap;">
+        <div style="display:flex;gap:1rem;align-items:center;">
+          <div class="segmented-control">
+            <button class="control-btn ${viewMode==='monthly'?'active':''}" onclick="window.setViewMode('monthly')">Theo tháng</button>
+            <button class="control-btn ${viewMode==='summary'?'active':''}" onclick="window.setViewMode('summary')">Tổng hợp</button>
+          </div>
+          ${viewMode === 'monthly' ? `
+            <select class="select-input" id="lv-month-selector">${displayMonths.length?displayMonths.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${m}</option>`).join(''):`<option>${selectedMonth}</option>`}</select>
+          ` : `
+            <select class="select-input" id="lv-month-selector">
+              <option value="all" ${summaryPeriod==='all'?'selected':''}>Cả năm</option>
+              <option value="q1" ${summaryPeriod==='q1'?'selected':''}>Quý 1</option>
+              <option value="q2" ${summaryPeriod==='q2'?'selected':''}>Quý 2</option>
+              <option value="q3" ${summaryPeriod==='q3'?'selected':''}>Quý 3</option>
+              <option value="q4" ${summaryPeriod==='q4'?'selected':''}>Quý 4</option>
+            </select>
+          `}
+        </div>
+        <div style="display:flex;gap:1rem;">
+          ${viewMode === 'monthly' ? `
+            <button onclick="window.importLeaveMonth()" class="btn btn-secondary" title="Đồng bộ danh sách từ Bảng Lương sang"><i data-lucide="refresh-cw"></i> Import Tháng mới</button>
+            <button onclick="window.deleteLeaveMonth()" class="btn btn-secondary" style="color:#ef4444;" title="Xóa dữ liệu tháng này"><i data-lucide="trash-2"></i> Xóa</button>
+          ` : ''}
+          <button onclick="window.exportLeaveToExcel()" class="btn btn-secondary"><i data-lucide="download"></i> Xuất Excel</button>
+        </div>
+      </div>
+      
+      <div class="table-container">
+        <table class="salary-detail-table">
+          <thead>
+            <tr>
+              <th class="sticky-col col-tt">TT</th>
+              <th class="sticky-col col-name">Họ tên</th>
+              <th class="sticky-col col-dept">Khoa/Phòng</th>
+              <th>Số tiền (VNĐ)</th>
+              <th>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map((e, i) => `
+              <tr>
+                <td class="sticky-col col-tt">${i+1}</td>
+                <td class="sticky-col col-name" style="font-weight:600;">${e.name}</td>
+                <td class="sticky-col col-dept">${e.dept}</td>
+                <td>
+                  ${viewMode === 'monthly' ? 
+                    `<input type="text" class="cell-input" style="text-align:right; font-weight:bold; color:var(--primary);" value="${formatNumber(e.amount||0)}" onchange="window.updateLeaveAmount('${e.name}', this.value)">` : 
+                    `<div style="text-align:right; font-weight:bold; color:var(--primary);">${formatNumber(e.amount||0)}</div>`}
+                </td>
+                <td>
+                  ${viewMode === 'monthly' ? 
+                    `<input type="text" class="cell-input" style="text-align:left;" value="${e.notes||''}" onchange="window.updateLeaveNotes('${e.name}', this.value)">` : 
+                    `${e.notes||''}`}
+                </td>
+              </tr>
+            `).join('')}
           </tbody>
         </table>
       </div>
@@ -1128,7 +1276,7 @@ const Dashboard = () => {
   const pitTotal = pitList.reduce((s, e) => s + Math.max(0, e.taxable), 0);
 
   const allMonths = sortMonthsDesc([...new Set([
-    ...Object.keys(salaryData), ...Object.keys(overtimeData), ...Object.keys(bonusData), ...Object.keys(nq20Data)
+    ...Object.keys(salaryData), ...Object.keys(overtimeData), ...Object.keys(bonusData), ...Object.keys(leaveData), ...Object.keys(nq20Data)
   ])]);
   if (!allMonths.includes(selectedMonth)) allMonths.unshift(selectedMonth);
 
@@ -2159,6 +2307,7 @@ const render = () => {
       case 'overtime': content = OvertimeModule(); break;
       case 'bonus': content = BonusModule(); break;
       case 'nq20': content = NQ20Module(); break;
+      case 'leave': content = LeaveModule(); break;
       case 'budget': content = BudgetPlanningModule(); break;
       default: content = Dashboard();
     }
@@ -2218,7 +2367,7 @@ const render = () => {
     }
     document.querySelectorAll('.nav-item[data-tab]').forEach(i => i.onclick = () => { currentTab = i.dataset.tab; render(); });
     const si = document.getElementById('search-input'); if(si){ si.value = searchFilter; si.oninput = (e) => { searchFilter = e.target.value; render(); } }
-    const ms = document.getElementById('month-selector') || document.getElementById('ot-month-selector') || document.getElementById('bn-month-selector') || document.getElementById('nq20-month-selector') || document.getElementById('dashboard-month-selector');
+    const ms = document.getElementById('month-selector') || document.getElementById('ot-month-selector') || document.getElementById('bn-month-selector') || document.getElementById('nq20-month-selector') || document.getElementById('dashboard-month-selector') || document.getElementById('lv-month-selector');
     if(ms) ms.onchange = (e) => { selectedMonth = e.target.value; selectedBonusContent = 'all'; render(); }
     const bcs = document.getElementById('bn-content-selector');
     if(bcs) bcs.onchange = (e) => { selectedBonusContent = e.target.value; render(); }
@@ -3225,7 +3374,7 @@ window.backupToCloud = async function() {
   localStorage.setItem('hospital_cloud_url', url);
   
   const payload = {
-    salaryData, overtimeData, bonusData, nq20Data, salaryHeaders, dependentOverrides, budgetPromotionData,
+    salaryData, overtimeData, bonusData, nq20Data, leaveData, salaryHeaders, dependentOverrides, budgetPromotionData,
     pitData: {
       q1: aggregatePITData('1'),
       q2: aggregatePITData('2'),
@@ -3285,6 +3434,7 @@ window.restoreFromCloud = async function() {
       localStorage.setItem('hospital_overtime_data', JSON.stringify(data.overtimeData || {}));
       localStorage.setItem('hospital_bonus_data', JSON.stringify(data.bonusData || {}));
       localStorage.setItem('hospital_nq20_data', JSON.stringify(data.nq20Data || {}));
+      localStorage.setItem('hospital_leave_data', JSON.stringify(data.leaveData || {}));
       if (data.salaryHeaders) localStorage.setItem('hospital_salary_headers', JSON.stringify(data.salaryHeaders));
       if (data.dependentOverrides) localStorage.setItem('hospital_dependent_overrides', JSON.stringify(data.dependentOverrides));
       if (data.budgetPromotionData) localStorage.setItem('hospital_budget_promotion_data', JSON.stringify(data.budgetPromotionData));
