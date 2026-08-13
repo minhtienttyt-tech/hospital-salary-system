@@ -757,7 +757,7 @@ window.exportLeaveToExcel = function() {
 };
 window.importLeaveMonth = function() {
   if (!salaryData[selectedMonth]) return alert('Vui lòng Import Bảng lương tháng ' + selectedMonth + ' trước!');
-  leaveData[selectedMonth] = salaryData[selectedMonth].filter(isValidEmp).map(e => ({
+  leaveData[selectedMonth] = salaryData[selectedMonth].filter(isRealEmployee).map(e => ({
     name: e.name, dept: e.department, amount: 0, notes: ''
   }));
   saveToLocal(); render();
