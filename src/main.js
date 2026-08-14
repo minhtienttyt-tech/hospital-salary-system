@@ -720,7 +720,7 @@ window.updateLeaveNotes = function(name, val) {
 window.updateLeaveAmount = function(name, val) {
   if (leaveData[selectedMonth]) {
     const r = leaveData[selectedMonth].find(e => normalize(e.name) === normalize(name));
-    if (r) { r.amount = parseNumber(val); saveToLocal(); render(); }
+    if (r) { r.amount = parseVNNumber(val); saveToLocal(); render(); }
   }
 };
 window.exportLeaveToExcel = function() {
@@ -836,8 +836,8 @@ const LeaveModule = () => {
                 <td class="sticky-col col-dept">${e.dept}</td>
                 <td>
                   ${viewMode === 'monthly' ? 
-                    `<input type="text" class="cell-input" style="text-align:right; font-weight:bold; color:var(--primary);" value="${formatNumber(e.amount||0)}" onchange="window.updateLeaveAmount('${e.name}', this.value)">` : 
-                    `<div style="text-align:right; font-weight:bold; color:var(--primary);">${formatNumber(e.amount||0)}</div>`}
+                    `<input type="text" class="cell-input" style="text-align:right; font-weight:bold; color:var(--primary);" value="${fmt(e.amount||0)}" onchange="window.updateLeaveAmount('${e.name}', this.value)">` : 
+                    `<div style="text-align:right; font-weight:bold; color:var(--primary);">${fmt(e.amount||0)}</div>`}
                 </td>
                 <td>
                   ${viewMode === 'monthly' ? 
