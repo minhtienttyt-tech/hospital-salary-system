@@ -1023,31 +1023,42 @@ function processLeaveCSV(text) {
   const rows = Papa.parse(text, { skipEmptyLines: true }).data;
   if (rows.length < 2) return [];
 
-  let hIdx = rows.findIndex(r => r.some(c => c && (c.toString().toLowerCase().includes('họ và tên') || c.toString().toLowerCase().includes('họ tên') || c.toString().toLowerCase() === 'tên')));
-  if (hIdx === -1) hIdx = 0;
-
-  let nameIdx = 1, amtIdx = 4, notesIdx = -1, deptIdx = 2;
-  if (rows[hIdx]) {
-    const nhIdx = rows[hIdx].findIndex(c => c && (c.toString().toLowerCase() === 'họ và tên' || c.toString().toLowerCase() === 'họ tên'));
-    if (nhIdx !== -1) nameIdx = nhIdx;
-    
-    const dIdx = rows[hIdx].findIndex(c => c && c.toString().toLowerCase().includes('đơn vị'));
-    if (dIdx !== -1) deptIdx = dIdx;
-    
-    const aIdx = rows[hIdx].findIndex(c => c && (c.toString().toLowerCase().includes('số tiền') || c.toString().toLowerCase().includes('thành tiền') || c.toString().toLowerCase().includes('tổng cộng')));
-    if (aIdx !== -1) amtIdx = aIdx;
-    
-    const ntIdx = rows[hIdx].findIndex(c => c && c.toString().toLowerCase().includes('ghi chú'));
-    if (ntIdx !== -1) notesIdx = ntIdx;
+  let nameIdx = -1, amtIdx = -1, deptIdx = -1, notesIdx = -1;
+  let startRow = 0;
+  
+  for(let i=0; i<Math.min(30, rows.length); i++) {
+    for(let j=0; j<rows[i].length; j++) {
+      const cell = (rows[i][j]||'').toString().toLowerCase().trim();
+      if(!cell) continue;
+      if(nameIdx === -1 && (cell === 'họ và tên' || cell === 'họ tên' || cell === 'tên nhân viên' || cell === 'tên' || cell.includes('họ và tên'))) {
+        nameIdx = j;
+        startRow = i;
+      }
+      if(amtIdx === -1 && (cell.includes('số tiền') || cell.includes('thành tiền') || cell.includes('tổng cộng') || cell.includes('thực lĩnh'))) {
+        amtIdx = j;
+      }
+      if(deptIdx === -1 && (cell.includes('đơn vị') || cell.includes('khoa') || cell.includes('phòng') || cell.includes('bộ phận'))) {
+        deptIdx = j;
+      }
+      if(notesIdx === -1 && (cell.includes('ghi chú') || cell.includes('nội dung'))) {
+        notesIdx = j;
+      }
+    }
   }
 
+  if(nameIdx === -1) nameIdx = 1;
+  if(amtIdx === -1) amtIdx = 4;
+  if(deptIdx === -1) deptIdx = 2;
+
   const result = [];
-  for (let i = hIdx + 1; i < rows.length; i++) {
-    const name = rows[i][nameIdx];
+  for (let i = startRow + 1; i < rows.length; i++) {
+    const r = rows[i];
+    if(!r) continue;
+    const name = r[nameIdx] ? r[nameIdx].toString().trim() : '';
     if (!name || !isRealEmployee({ name })) continue;
-    const amount = parseVNNumber(rows[i][amtIdx]);
-    const dept = rows[i][deptIdx] || '';
-    const notes = notesIdx !== -1 ? (rows[i][notesIdx] || '') : '';
+    const amount = parseVNNumber(r[amtIdx]);
+    const dept = r[deptIdx] ? r[deptIdx].toString().trim() : '';
+    const notes = notesIdx !== -1 && r[notesIdx] ? r[notesIdx].toString().trim() : '';
     result.push({ name, dept, amount, notes });
   }
   return result;
