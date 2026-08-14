@@ -97,7 +97,13 @@ window.deleteBonusMonth = function() {
       selectedBonusContent = 'all';
       saveToLocal(); render();
     }
-  } else {
+  } else if (type === 'leave') {
+          const parsed = processLeaveCSV(text);
+          if(!parsed.length) throw new Error('Dữ liệu không hợp lệ');
+          leaveData[m] = parsed;
+          localStorage.setItem('last_leave_url', u);
+          localStorage.setItem('last_leave_gid', g);
+        } else {
     if (confirm('Xóa TẤT CẢ dữ liệu khen thưởng tháng ' + selectedMonth + '?')) {
       delete bonusData[selectedMonth];
       saveToLocal(); render();
@@ -810,7 +816,7 @@ const LeaveModule = () => {
         </div>
         <div style="display:flex;gap:1rem;">
           ${viewMode === 'monthly' ? `
-            <button onclick="window.importLeaveMonth()" class="btn btn-secondary" title="Đồng bộ danh sách từ Bảng Lương sang"><i data-lucide="refresh-cw"></i> Import Tháng mới</button>
+            <button class="btn btn-primary" id="import-lv-btn"><i data-lucide="refresh-cw"></i> Import Tháng mới</button>
             <button onclick="window.deleteLeaveMonth()" class="btn btn-secondary" style="color:#ef4444;" title="Xóa dữ liệu tháng này"><i data-lucide="trash-2"></i> Xóa</button>
           ` : ''}
           <button onclick="window.exportLeaveToExcel()" class="btn btn-secondary"><i data-lucide="download"></i> Xuất Excel</button>
@@ -1011,6 +1017,41 @@ const NQ20Module = () => {
     </div>
   </div>`;
 };
+
+
+function processLeaveCSV(text) {
+  const rows = Papa.parse(text, { skipEmptyLines: true }).data;
+  if (rows.length < 2) return [];
+
+  let hIdx = rows.findIndex(r => r.some(c => c && c.toString().toLowerCase().includes('họ và tên')));
+  if (hIdx === -1) hIdx = 0;
+
+  let nameIdx = 1, amtIdx = 4, notesIdx = -1, deptIdx = 2;
+  if (rows[hIdx]) {
+    const nhIdx = rows[hIdx].findIndex(c => c && (c.toString().toLowerCase() === 'họ và tên' || c.toString().toLowerCase() === 'họ tên'));
+    if (nhIdx !== -1) nameIdx = nhIdx;
+    
+    const dIdx = rows[hIdx].findIndex(c => c && c.toString().toLowerCase().includes('đơn vị'));
+    if (dIdx !== -1) deptIdx = dIdx;
+    
+    const aIdx = rows[hIdx].findIndex(c => c && (c.toString().toLowerCase().includes('số tiền') || c.toString().toLowerCase().includes('thành tiền') || c.toString().toLowerCase().includes('tổng cộng')));
+    if (aIdx !== -1) amtIdx = aIdx;
+    
+    const ntIdx = rows[hIdx].findIndex(c => c && c.toString().toLowerCase().includes('ghi chú'));
+    if (ntIdx !== -1) notesIdx = ntIdx;
+  }
+
+  const result = [];
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const name = rows[i][nameIdx];
+    if (!name || !isRealEmployee({ name })) continue;
+    const amount = parseVNNumber(rows[i][amtIdx]);
+    const dept = rows[i][deptIdx] || '';
+    const notes = notesIdx !== -1 ? (rows[i][notesIdx] || '') : '';
+    result.push({ name, dept, amount, notes });
+  }
+  return result;
+}
 
 function processOvertimeCSV(text) {
   const rows = Papa.parse(text, { skipEmptyLines: true }).data;
@@ -2392,7 +2433,7 @@ const render = () => {
 
     const ib = document.getElementById('import-btn'), im = document.getElementById('import-modal'), cm = document.getElementById('close-modal'), cfm = document.getElementById('confirm-import');
     if(cm) cm.onclick = () => im.style.display = 'none';
-    const otib = document.getElementById('import-ot-btn'), bnib = document.getElementById('import-bonus-btn'), nq20ib = document.getElementById('import-nq20-btn');
+    const otib = document.getElementById('import-ot-btn'), bnib = document.getElementById('import-bonus-btn'), nq20ib = document.getElementById('import-nq20-btn'), lvib = document.getElementById('import-lv-btn');
     const toggleBonusContent = (show) => { const c = document.getElementById('import-bonus-content-container'); if(c) c.style.display = show ? 'block' : 'none'; };
     if(otib) otib.onclick = () => {
       document.getElementById('import-title').textContent = 'Import Ngoài giờ';
@@ -2417,6 +2458,14 @@ const render = () => {
       document.getElementById('import-url').value = localStorage.getItem('last_nq20_url') || 'https://docs.google.com/spreadsheets/d/1Imhhn8uEhS2_Wn_3TbQlohsrEUUai_EK6JVJfNUDboQ/edit';
       document.getElementById('import-gid').value = localStorage.getItem('last_nq20_gid') || '';
       cfm.setAttribute('data-type', 'nq20'); toggleBonusContent(false); im.style.display = 'flex';
+    };
+
+    
+    if(lvib) lvib.onclick = () => {
+      document.getElementById('import-title').textContent = 'Import Công tác & Nghỉ phép';
+      document.getElementById('import-url').value = localStorage.getItem('last_leave_url') || '';
+      document.getElementById('import-gid').value = localStorage.getItem('last_leave_gid') || '';
+      cfm.setAttribute('data-type', 'leave'); toggleBonusContent(false); im.style.display = 'flex';
     };
 
     if(cfm) cfm.onclick = async () => {
