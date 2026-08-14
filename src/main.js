@@ -1023,7 +1023,7 @@ function processLeaveCSV(text) {
   const rows = Papa.parse(text, { skipEmptyLines: true }).data;
   if (rows.length < 2) return [];
 
-  let hIdx = rows.findIndex(r => r.some(c => c && c.toString().toLowerCase().includes('họ và tên')));
+  let hIdx = rows.findIndex(r => r.some(c => c && (c.toString().toLowerCase().includes('họ và tên') || c.toString().toLowerCase().includes('họ tên') || c.toString().toLowerCase() === 'tên')));
   if (hIdx === -1) hIdx = 0;
 
   let nameIdx = 1, amtIdx = 4, notesIdx = -1, deptIdx = 2;
